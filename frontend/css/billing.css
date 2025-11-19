@@ -1,68 +1,133 @@
-/* Save as: /frontend/css/billing.css */
+/* Billing Page Styles */
+/* Ensure this loads after inventory.css for shared variables */
 
-
-:root{
---primary:#0d6efd; /* bootstrap primary-like */
---muted:#f5f7fa;
---card-bg:#ffffff;
---accent:#0b5cd6;
+/* Global Overrides */
+body {
+  background: var(--light-bg);
+  font-family: var(--font-family);
 }
 
-
-body{
-background:var(--muted);
-font-family: "Segoe UI", sans-serif;
+/* Navbar */
+.navbar {
+  background: var(--primary-color);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
 }
 
-
-.navbar-brand{font-weight:700}
-
-
-.sidebar .side-inner{
-background:var(--card-bg);
-border-radius:8px;
-height:100%;
-box-shadow:0 4px 12px rgba(13,110,253,0.06);
-padding:12px;
+/* Sidebar (Categories) */
+.sidebar {
+  background: white;
+  border-right: 1px solid var(--border-color);
+  min-height: 100vh; /* Full height */
 }
 
-
-.category-list li{
-background:#e9f2ff;
-padding:10px 12px;
-margin-bottom:8px;
-border-radius:6px;
-cursor:pointer;
-color:#064a9b;
+.side-inner {
+  position: sticky;
+  top: 0;
 }
-.category-list li.active{background:var(--primary); color:#fff}
 
-
-.product-card{
-border-radius:10px;
-overflow:hidden;
-cursor:pointer;
-transition:transform .15s ease, box-shadow .15s ease;
-box-shadow:0 6px 18px rgba(0,0,0,0.06);
+.category-list li {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  transition: background 0.2s;
 }
-.product-card img{height:110px; object-fit:cover}
-.product-card .price{font-weight:700}
-.product-card:hover{transform:translateY(-6px); box-shadow:0 12px 30px rgba(0,0,0,0.08)}
 
+.category-list li:hover,
+.category-list li.active {
+  background: var(--primary-color);
+  color: white;
+}
 
-.cart-panel, .billing-panel, .keypad-panel{border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-.cart-table tbody tr td{vertical-align:middle}
+/* Product Grid */
+.product-card {
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
 
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
 
-.num-btn{background:#e6f0ff; border:0; padding:12px; border-radius:8px}
-.clear-btn{background:#ffebe6; border:0; padding:12px; border-radius:8px}
-.enter-btn{background:#dff7e6; border:0; padding:12px; border-radius:8px}
+.product-card img {
+  height: 120px;
+  object-fit: cover;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+}
 
+.product-card .card-body {
+  padding: 0.5rem;
+}
 
-.keypad-panel .btn{font-weight:700}
+.product-card .price {
+  font-weight: bold;
+  color: var(--primary-color);
+}
 
+.product-card .name {
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
 
-/* responsive tweaks */
-@media (max-width:991px){
-.sidebar{display:none}
+/* Cart and Billing Panels */
+.cart-panel,
+.billing-panel {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.cart-table {
+  max-height: 300px; /* Scrollable cart */
+  overflow-y: auto;
+}
+
+.cart-table table {
+  font-size: 0.875rem;
+}
+
+.billing-panel .form-control {
+  border-radius: var(--border-radius);
+}
+
+/* Keypad Replacement: Add Custom Item Button */
+.add-custom-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
+  width: 100%;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.add-custom-btn:hover {
+  background: #0b5cd6;
+}
+
+/* Modal for Custom Item */
+.modal-content {
+  border-radius: var(--border-radius);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .product-grid .col-lg-3 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+  
+  .cart-table {
+    max-height: 200px;
+  }
 }
