@@ -1,0 +1,68 @@
+/* Save as: /frontend/css/billing.css */
+
+
+:root{
+--primary:#0d6efd; /* bootstrap primary-like */
+--muted:#f5f7fa;
+--card-bg:#ffffff;
+--accent:#0b5cd6;
+}
+
+
+body{
+background:var(--muted);
+font-family: "Segoe UI", sans-serif;
+}
+
+
+.navbar-brand{font-weight:700}
+
+
+.sidebar .side-inner{
+background:var(--card-bg);
+border-radius:8px;
+height:100%;
+box-shadow:0 4px 12px rgba(13,110,253,0.06);
+padding:12px;
+}
+
+
+.category-list li{
+background:#e9f2ff;
+padding:10px 12px;
+margin-bottom:8px;
+border-radius:6px;
+cursor:pointer;
+color:#064a9b;
+}
+.category-list li.active{background:var(--primary); color:#fff}
+
+
+.product-card{
+border-radius:10px;
+overflow:hidden;
+cursor:pointer;
+transition:transform .15s ease, box-shadow .15s ease;
+box-shadow:0 6px 18px rgba(0,0,0,0.06);
+}
+.product-card img{height:110px; object-fit:cover}
+.product-card .price{font-weight:700}
+.product-card:hover{transform:translateY(-6px); box-shadow:0 12px 30px rgba(0,0,0,0.08)}
+
+
+.cart-panel, .billing-panel, .keypad-panel{border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+.cart-table tbody tr td{vertical-align:middle}
+
+
+.num-btn{background:#e6f0ff; border:0; padding:12px; border-radius:8px}
+.clear-btn{background:#ffebe6; border:0; padding:12px; border-radius:8px}
+.enter-btn{background:#dff7e6; border:0; padding:12px; border-radius:8px}
+
+
+.keypad-panel .btn{font-weight:700}
+
+
+/* responsive tweaks */
+@media (max-width:991px){
+.sidebar{display:none}
+}
