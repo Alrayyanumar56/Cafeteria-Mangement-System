@@ -1,0 +1,98 @@
+/* Button Base */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* Button Variants */
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0b5cd6;
+}
+
+.btn-secondary {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #218838;
+}
+
+.btn-warning {
+  background: var(--warning-color);
+  color: #212529;
+}
+
+.btn-warning:hover {
+  background: #e0a800;
+}
+
+/* Button Sizes */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Button with Icons (e.g., for your add/edit buttons) */
+.btn i {
+  margin-right: 0.25rem;
+}
+
+/* Disabled State */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn {
+  display: inline-flex; /* Enable flexbox for centering */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center (especially for icon-only) */
+}
+.btn i {
+  margin-right: 0.25rem; /* Keep existing space for text+icon buttons */
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+/* For icon-only buttons (e.g., edit/delete in table), ensure full centering */
+.btn.btn-sm i:only-child {
+  margin-right: 0; /* Remove right margin if no text */
+}
