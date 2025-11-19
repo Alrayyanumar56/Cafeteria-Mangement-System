@@ -1,0 +1,105 @@
+/* Dashboard-Specific Styles */
+/* Import or ensure this loads after inventory.css for shared variables */
+
+/* Page Background and Layout */
+body {
+  background: var(--light-bg); /* From inventory.css */
+  font-family: var(--font-family);
+}
+
+/* Navbar Enhancements */
+.navbar {
+  background: var(--primary-color);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Stats Cards */
+.card-box {
+  background: white;
+  padding: 1.5rem; /* Equivalent to p-6 */
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+}
+
+.card-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
+}
+
+.card-box h5 {
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.card-box h2 {
+  margin: 0;
+  font-size: 2rem; /* fs-3 equivalent */
+}
+
+/* Color Variants for Stats Cards */
+.card-box:nth-child(1) h2 { /* Total Sales */
+  color: var(--primary-color);
+}
+
+.card-box:nth-child(2) h2 { /* Total Items */
+  color: var(--success-color);
+}
+
+.card-box:nth-child(3) h2 { /* Low Stock Alerts */
+  color: var(--danger-color);
+}
+
+/* Charts Section */
+.chart-box {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  height: 350px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-box h5 {
+  color: var(--text-color);
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.chart-box canvas {
+  flex: 1; /* Makes canvas fill remaining space */
+  max-height: 250px; /* Matches your HTML height */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .card-box {
+    padding: 1rem; /* Smaller padding on mobile */
+  }
+  
+  .chart-box {
+    height: auto; /* Flexible height for mobile */
+    margin-bottom: 1rem;
+  }
+  
+  .row.g-4 {
+    --bs-gutter-x: 1rem; /* Adjust gap for mobile */
+  }
+}
+
+/* Additional Utilities for Dashboard */
+.gradient-bg {
+  background: linear-gradient(135deg, var(--primary-color), #0056b3); /* Subtle gradient for emphasis */
+  color: white;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

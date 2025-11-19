@@ -1,0 +1,133 @@
+/* Billing Page Styles */
+/* Ensure this loads after inventory.css for shared variables */
+
+/* Global Overrides */
+body {
+  background: var(--light-bg);
+  font-family: var(--font-family);
+}
+
+/* Navbar */
+.navbar {
+  background: var(--primary-color);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar (Categories) */
+.sidebar {
+  background: white;
+  border-right: 1px solid var(--border-color);
+  min-height: 100vh; /* Full height */
+}
+
+.side-inner {
+  position: sticky;
+  top: 0;
+}
+
+.category-list li {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  transition: background 0.2s;
+}
+
+.category-list li:hover,
+.category-list li.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Product Grid */
+.product-card {
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.product-card img {
+  height: 120px;
+  object-fit: cover;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+}
+
+.product-card .card-body {
+  padding: 0.5rem;
+}
+
+.product-card .price {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.product-card .name {
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
+
+/* Cart and Billing Panels */
+.cart-panel,
+.billing-panel {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.cart-table {
+  max-height: 300px; /* Scrollable cart */
+  overflow-y: auto;
+}
+
+.cart-table table {
+  font-size: 0.875rem;
+}
+
+.billing-panel .form-control {
+  border-radius: var(--border-radius);
+}
+
+/* Keypad Replacement: Add Custom Item Button */
+.add-custom-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
+  width: 100%;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.add-custom-btn:hover {
+  background: #0b5cd6;
+}
+
+/* Modal for Custom Item */
+.modal-content {
+  border-radius: var(--border-radius);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .product-grid .col-lg-3 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+  
+  .cart-table {
+    max-height: 200px;
+  }
+}
