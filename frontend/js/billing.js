@@ -1,5 +1,35 @@
 const cart = [];
 
+// Load custom menu items from localStorage on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCustomMenuItems();
+});
+
+// Load and display custom menu items
+function loadCustomMenuItems() {
+    const customMenuItems = JSON.parse(localStorage.getItem('customMenuItems')) || [];
+    const productGrid = document.getElementById('productGrid');
+    
+    // Add custom menu items to the product grid
+    customMenuItems.forEach(item => {
+        const productDiv = document.createElement('div');
+        productDiv.className = 'col-6 col-sm-4 col-lg-3 product-item';
+        productDiv.setAttribute('data-category', item.category);
+        
+        productDiv.innerHTML = `
+            <div class="card product-card" onclick="addToCart(${item.id},'${item.name}',${item.price})">
+                <img src="${item.image}" class="card-img-top" alt="product">
+                <div class="card-body p-2 text-center">
+                    <p class="price mb-1">Rs ${item.price.toFixed(0)}</p>
+                    <p class="name mb-0">${item.name}</p>
+                </div>
+            </div>
+        `;
+        
+        productGrid.appendChild(productDiv);
+    });
+}
+
 // Add item to cart
 function addToCart(id, name, price) {
     const existing = cart.find(i => i.id === id);
