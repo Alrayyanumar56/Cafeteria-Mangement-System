@@ -17,109 +17,100 @@
     <link rel="stylesheet" href="../css/buttons.css">
     <link rel="stylesheet" href="../css/forms.css">
 </head>
-
 <body>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary p-3">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="#">☕ CafePOS</a>
-        </div>
-    </nav>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary p-3">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">☕ CafePOS</a>
+    </div>
+</nav>
 
-    <div class="container mt-4">
-
-        <!-- Page Header -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="fw-bold">Inventory</h3>
-
-            <!-- Add Item Button -->
-            <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addItemModal">
-                <i class="bi bi-plus-circle"></i> Add Item
-            </button>
-        </div>
-
-        <!-- Inventory Card -->
-        <div class="custom-card">
-
-            <!-- Search -->
-            <div class="search-box mb-3">
-                <input type="text" id="search" class="form-control" placeholder="Search items...">
-            </div>
-
-            <!-- Table -->
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Price (PKR)</th>
-                            <th>Quantity</th>
-                            <th style="width:110px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventoryTableBody">
-                        <!-- Rows injected via JS -->
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Inventory</h3>
+        <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addItemModal">
+            <i class="bi bi-plus-circle"></i> Add Item
+        </button>
     </div>
 
+    <div class="custom-card">
+        <div class="search-box mb-3">
+            <input type="text" id="search" class="form-control" placeholder="Search items...">
+        </div>
 
-    <!-- MODAL: Add Item -->
-    <div class="modal fade" id="addItemModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Item Name</th>
+                        <th>Category</th>
+                        <th>Price (PKR)</th>
+                        <th>Quantity</th>
+                        <th>Unit</th>
+                        <th style="width:110px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Item</h5>
-                </div>
+<!-- Add / Update Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
-                <div class="modal-body">
-                    <form id="addItemForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Item</h5>
+            </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Item Name</label>
-                            <input type="text" class="form-control" id="itemName" required>
-                        </div>
+            <div class="modal-body">
+                <form id="addItemForm">
+                    <div class="mb-3">
+                        <label class="form-label">Item Name</label>
+                        <input type="text" class="form-control" id="itemName" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            <input type="text" class="form-control" id="itemCategory" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" id="itemCategory" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Price (PKR)</label>
-                            <input type="number" class="form-control" id="itemPrice" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Price (PKR)</label>
+                        <input type="number" class="form-control" id="itemPrice" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Stock Quantity</label>
+                    <div class="mb-3 d-flex gap-2">
+                        <div class="flex-grow-1">
+                            <label class="form-label">Quantity</label>
                             <input type="number" class="form-control" id="itemQty" required>
                         </div>
-
-                    </form>
-                </div>
-
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" onclick="addItem()">Add Item</button>
-                </div>
-
+                        <div>
+                            <label class="form-label">Unit</label>
+                            <select id="itemUnit" class="form-select">
+                                <option value="pcs">pcs</option>
+                                <option value="kg">kg</option>
+                                <option value="L">L</option>
+                                <option value="dozen">dozen</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
             </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="addItem()">Add Item</button>
+            </div>
+
         </div>
     </div>
+</div>
 
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- JS -->
-    <script src="../js/inventory.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/inventory.js"></script>
 </body>
 </html>
