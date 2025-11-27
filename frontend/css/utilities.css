@@ -1,0 +1,8 @@
+.scrollable-card {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.actions-col {
+    width: 110px;
+}

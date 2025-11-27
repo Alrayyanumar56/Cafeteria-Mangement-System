@@ -148,6 +148,95 @@ function checkout() {
     const balance = (paid - total).toFixed(2);
     alert(`Checkout successful!\nTotal: PKR ${total.toFixed(2)}\nCash: PKR ${cash.toFixed(2)}\nOnline: PKR ${online.toFixed(2)}\nBalance: PKR ${balance}`);
 
+    // Persist sales records to localStorage so the Reports page can read them
+    try {
+        const salesRecords = JSON.parse(localStorage.getItem('salesRecords')) || [];
+
+        // We'll allocate payments to items: consume cash first, then online for any remainder
+        let availableCash = cash;
+
+        cart.forEach(item => {
+            const itemTotal = item.price * item.qty;
+
+            // Determine how many units can be covered by cash
+            let cashQty = 0;
+            if (availableCash > 0) {
+                cashQty = Math.min(item.qty, Math.floor(availableCash / item.price));
+                availableCash -= cashQty * item.price;
+            }
+
+            // If some quantity is covered by cash, add that record
+            if (cashQty > 0) {
+                salesRecords.push({
+                    date: new Date().toISOString().split('T')[0],
+                    name: item.name,
+                    qty: cashQty,
+                    price: item.price,
+                    payment: 'cash'
+                });
+            }
+
+            const remainingQty = item.qty - cashQty;
+            if (remainingQty > 0) {
+                // Remaining paid by online (or mixed) - we mark as 'online' for reporting
+                salesRecords.push({
+                    date: new Date().toISOString().split('T')[0],
+                    name: item.name,
+                    qty: remainingQty,
+                    price: item.price,
+                    payment: 'online'
+                });
+            }
+        });
+
+        localStorage.setItem('salesRecords', JSON.stringify(salesRecords));
+    } catch (e) {
+        console.error('Failed to save sales records:', e);
+    }
+
+    // Save the checkout as a sale-level bill so Reports can show individual bills
+    try {
+        const bills = JSON.parse(localStorage.getItem('salesBills')) || [];
+        // snapshot items (deep copy current cart before clearing)
+        const billItems = cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }));
+        const billTotal = billItems.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+        const bill = {
+            id: Date.now(),
+            date: new Date().toISOString(),
+            dateSimple: new Date().toISOString().split('T')[0],
+            items: billItems,
+            payments: { cash: Number(cash) || 0, online: Number(online) || 0 },
+            total: billTotal
+        };
+        bills.push(bill);
+        localStorage.setItem('salesBills', JSON.stringify(bills));
+    } catch (e) {
+        console.error('Failed to save sale-level bill:', e);
+    }
+
+    // Decrement inventory quantities for sold items (persist to localStorage)
+    try {
+        // Load stored inventory (fall back to window.inventory if available)
+        let storedInventory = JSON.parse(localStorage.getItem('inventory')) || null;
+        if (!storedInventory && window.inventory) storedInventory = window.inventory;
+
+        if (storedInventory) {
+            // For each cart item, find inventory item by name (case-insensitive) and decrement qty
+            cart.forEach(item => {
+                const name = (item.name || '').toString().toLowerCase();
+                const inv = storedInventory.find(ii => (ii.name || '').toString().toLowerCase() === name);
+                if (inv) {
+                    inv.qty = Math.max(0, (Number(inv.qty) || 0) - Number(item.qty || 0));
+                }
+            });
+
+            localStorage.setItem('inventory', JSON.stringify(storedInventory));
+        }
+    } catch (e) {
+        console.error('Failed to update inventory after checkout:', e);
+    }
+
+    // Clear cart and reset UI
     cart.length = 0;
     renderCart();
     document.getElementById('cashInput').value = '';

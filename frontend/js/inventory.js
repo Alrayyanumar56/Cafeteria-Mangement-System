@@ -1,9 +1,14 @@
-// Fake database
-let inventory = [
+// Inventory - persisted to localStorage under key 'inventory'
+let inventory = JSON.parse(localStorage.getItem('inventory')) || [
     { id: 1, name: "Burger Buns", category: "Bakery", price: 250, qty: 20, unit: "pcs" },
     { id: 2, name: "Chicken Patty", category: "Meat", price: 450, qty: 15, unit: "pcs" },
     { id: 3, name: "Cheese Slice", category: "Dairy", price: 120, qty: 50, unit: "pcs" },
 ];
+
+// Ensure initial inventory is saved to localStorage if not present
+if (!localStorage.getItem('inventory')) {
+    localStorage.setItem('inventory', JSON.stringify(inventory));
+}
 
 let editId = null;
 
@@ -71,6 +76,9 @@ function addItem() {
         inventory.push(newItem);
     }
 
+    // Persist inventory changes
+    try { localStorage.setItem('inventory', JSON.stringify(inventory)); } catch(e) { console.error('Failed to save inventory', e); }
+
     document.getElementById("addItemForm").reset();
     loadInventory();
     bootstrap.Modal.getInstance(document.getElementById("addItemModal")).hide();
@@ -81,6 +89,9 @@ function deleteItem(id) {
     if (!confirm("Are you sure?")) return;
     inventory = inventory.filter(i => i.id !== id);
     loadInventory();
+
+    // Persist inventory changes
+    try { localStorage.setItem('inventory', JSON.stringify(inventory)); } catch(e) { console.error('Failed to save inventory', e); }
 }
 
 // Prefill for update

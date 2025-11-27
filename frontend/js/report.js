@@ -25,11 +25,68 @@ const salesData = {
     }
 };
 
+// Helpers to persist/load sales records in localStorage so billing can write and reports read
+function getStoredSales() {
+    try {
+        const stored = JSON.parse(localStorage.getItem('salesRecords')) || [];
+        // Ensure proper shape (date, name, qty, price, payment)
+        return stored.map(r => ({
+            date: r.date,
+            name: r.name,
+            qty: Number(r.qty) || 0,
+            price: Number(r.price) || 0,
+            payment: r.payment || 'cash'
+        }));
+    } catch (e) {
+        console.error('Failed to parse stored sales:', e);
+        return [];
+    }
+}
+
+function buildAggregatesFromItems() {
+    const items = getStoredSales();
+    if (items.length > 0) {
+        salesData.items = items;
+    }
+
+    // Top items (by quantity)
+    const qtyByItem = {};
+    salesData.items.forEach(it => {
+        qtyByItem[it.name] = (qtyByItem[it.name] || 0) + (Number(it.qty) || 0);
+    });
+    const top = Object.entries(qtyByItem)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    salesData.topItems.labels = top.map(t => t[0]);
+    salesData.topItems.quantities = top.map(t => t[1]);
+
+    // Daily aggregates for last 7 days (YYYY-MM-DD)
+    const today = new Date();
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        last7.push(d.toISOString().split('T')[0]);
+    }
+    salesData.daily.labels = last7.map(d => d);
+    salesData.daily.cash = last7.map(() => 0);
+    salesData.daily.online = last7.map(() => 0);
+
+    salesData.items.forEach(it => {
+        const idx = salesData.daily.labels.indexOf(it.date);
+        const amount = (Number(it.qty) || 0) * (Number(it.price) || 0);
+        if (idx >= 0) {
+            if (it.payment === 'cash') salesData.daily.cash[idx] += amount;
+            else salesData.daily.online[idx] += amount;
+        }
+    });
+}
+
 // Calculate totals from sales data
 function calculateTotals() {
     let totalCash = 0;
     let totalOnline = 0;
-    let totalOrders = salesData.items.length;
+    // totalOrders should reflect number of bills (invoices), not flattened item records
+    let totalOrders = getStoredBills().length;
 
     salesData.items.forEach(item => {
         const itemTotal = item.qty * item.price;
@@ -207,6 +264,8 @@ function initTopItemsChart() {
 // Populate Sales Table
 function populateSalesTable(filteredData = null) {
     const tbody = document.getElementById('salesTableBody');
+    // If the detailed table was removed from the DOM, do nothing
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     const dataToDisplay = filteredData || salesData.items;
@@ -235,56 +294,141 @@ function populateSalesTable(filteredData = null) {
     });
 }
 
+// --- Bills (individual sale invoices) ---
+function getStoredBills() {
+    try {
+        return JSON.parse(localStorage.getItem('salesBills')) || [];
+    } catch (e) {
+        console.error('Failed to parse salesBills', e);
+        return [];
+    }
+}
+
+function renderBillsList(billsInput = null) {
+    const container = document.getElementById('billsList');
+    if (!container) return;
+
+    const bills = billsInput ? billsInput.slice() : getStoredBills().slice();
+    bills.reverse(); // newest first
+    if (bills.length === 0) {
+        container.innerHTML = '<div class="text-muted">No bills yet</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    bills.forEach(b => {
+        // determine payment method badge
+        const cash = Number(b.payments?.cash) || 0;
+        const online = Number(b.payments?.online) || 0;
+        let payLabel = 'Mixed';
+        let badgeClass = 'bg-secondary';
+        if (cash > 0 && online === 0) { payLabel = 'Cash'; badgeClass = 'bg-success'; }
+        else if (online > 0 && cash === 0) { payLabel = 'Online'; badgeClass = 'bg-info'; }
+
+        const el = document.createElement('div');
+        el.className = 'bill-card card mb-2 p-2';
+        el.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Bill #${b.id}</strong>
+                    <div class="text-muted small">${new Date(b.date).toLocaleString()}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge ${badgeClass} mb-1">${payLabel}</span>
+                    <div class="fw-bold">PKR ${Number(b.total).toLocaleString()}</div>
+                    <div class="small text-muted">Items: ${b.items.length}</div>
+                    <button class="btn btn-sm btn-outline-primary mt-1" data-bill-id="${b.id}">View</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(el);
+    });
+
+    // Attach handlers
+    container.querySelectorAll('button[data-bill-id]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = Number(this.getAttribute('data-bill-id'));
+            openBillModal(id);
+        });
+    });
+}
+
+function openBillModal(billId) {
+    const bills = getStoredBills();
+    const bill = bills.find(b => Number(b.id) === Number(billId));
+    if (!bill) { alert('Bill not found'); return; }
+
+    // Populate modal content
+    const modalTitle = document.getElementById('billModalTitle');
+    const modalBody = document.getElementById('billModalBody');
+    modalTitle.textContent = `Bill #${bill.id} — ${new Date(bill.date).toLocaleString()}`;
+    let html = '<div class="table-responsive"><table class="table"><thead><tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Total</th></tr></thead><tbody>';
+    bill.items.forEach(it => {
+        const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
+        html += `<tr><td>${it.name}</td><td class="text-end">${it.qty}</td><td class="text-end">PKR ${Number(it.price).toLocaleString()}</td><td class="text-end">PKR ${total.toLocaleString()}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+    html += `<div class="mt-2"><strong>Total: PKR ${Number(bill.total).toLocaleString()}</strong></div>`;
+    html += `<div class="small text-muted mt-1">Payments: Cash PKR ${Number(bill.payments.cash).toLocaleString()} | Online PKR ${Number(bill.payments.online).toLocaleString()}</div>`;
+    modalBody.innerHTML = html;
+
+    // Show bootstrap modal
+    const modalEl = document.getElementById('billModal');
+    new bootstrap.Modal(modalEl).show();
+}
+
 // Apply Filters
 function applyFilters() {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     const paymentFilter = document.getElementById('paymentFilter').value;
+    // Filter bills instead of per-item table
+    let bills = getStoredBills();
 
-    let filteredData = [...salesData.items];
-
-    // Filter by date range
     if (startDate) {
-        filteredData = filteredData.filter(item => item.date >= startDate);
+        bills = bills.filter(b => b.dateSimple >= startDate);
     }
     if (endDate) {
-        filteredData = filteredData.filter(item => item.date <= endDate);
+        bills = bills.filter(b => b.dateSimple <= endDate);
     }
 
-    // Filter by payment method
     if (paymentFilter !== 'all') {
-        filteredData = filteredData.filter(item => item.payment === paymentFilter);
+        if (paymentFilter === 'cash') bills = bills.filter(b => (Number(b.payments?.cash) || 0) > 0);
+        else if (paymentFilter === 'online') bills = bills.filter(b => (Number(b.payments?.online) || 0) > 0);
     }
 
-    // Update table with filtered data
-    populateSalesTable(filteredData);
-
-    // Show notification
-    showNotification(`Filters applied! Found ${filteredData.length} records.`);
+    renderBillsList(bills);
+    showNotification(`Filters applied! Found ${bills.length} bills.`);
 }
 
 // Export Report to CSV
 function exportReport() {
-    // Prepare CSV content
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Date,Item Name,Quantity,Unit Price,Total,Payment Method\n";
+    // Export bills as CSV (one row per bill)
+    const bills = getStoredBills();
+    if (!bills.length) { showNotification('No bills to export'); return; }
 
-    salesData.items.forEach(item => {
-        const total = item.qty * item.price;
-        const row = `${item.date},${item.name},${item.qty},${item.price},${total},${item.payment}`;
-        csvContent += row + "\n";
+    let csv = '';
+    csv += 'BillID,Date,ItemsCount,Total,CashPaid,OnlinePaid,PaymentMethod,Items\n';
+    bills.forEach(b => {
+        const cash = Number(b.payments?.cash) || 0;
+        const online = Number(b.payments?.online) || 0;
+        let method = 'Mixed';
+        if (cash > 0 && online === 0) method = 'Cash';
+        else if (online > 0 && cash === 0) method = 'Online';
+        const itemsStr = b.items.map(it => `${it.name} x${it.qty} @${it.price}`).join(' | ');
+        // Escape double quotes
+        const escapedItems = '"' + itemsStr.replace(/"/g, '""') + '"';
+        csv += `${b.id},${(b.date || '')},${b.items.length},${b.total},${cash},${online},${method},${escapedItems}\n`;
     });
 
-    // Create download link
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `sales_report_${new Date().toISOString().split('T')[0]}.csv`);
+    const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `bills_report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    showNotification('Report exported successfully!');
+    showNotification('Bills exported successfully!');
 }
 
 // Show notification (simple alert for now - can be enhanced with toast notifications)
@@ -304,9 +448,13 @@ function setDefaultDates() {
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
     setDefaultDates();
+    // Load stored sales and rebuild aggregates
+    buildAggregatesFromItems();
     calculateTotals();
+    // Initialize charts after aggregates are ready
     initDailySalesChart();
     initPaymentChart();
     initTopItemsChart();
-    populateSalesTable();
+    // Render bills list (this also acts as the detailed sales record)
+    renderBillsList();
 });
