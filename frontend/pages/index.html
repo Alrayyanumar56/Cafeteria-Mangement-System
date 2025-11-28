@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CafePOS - Home</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#fff; --accent:#0d6efd;
+    }
+    body { background:var(--bg); font-family:Inter,system-ui,Arial,sans-serif; }
+    .container-hero { max-width:1100px; margin:30px auto; padding:18px; }
+
+    .app-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:18px; margin-top:18px; }
+    .card-app {
+      background:var(--card);
+      padding:18px;
+      border-radius:12px;
+      box-shadow:0 6px 18px rgba(11,14,28,0.06);
+      text-align:center;
+      cursor:pointer;
+      transition:transform .12s, box-shadow .12s;
+      user-select:none;
+    }
+    .card-app:hover { transform:translateY(-6px); box-shadow:0 18px 36px rgba(11,14,28,0.08); }
+    .card-app .title { font-weight:700; font-size:18px; margin-top:8px; color:#0b1726; }
+    .card-app .desc { color:#58677a; margin-top:6px; font-size:14px; }
+    .card-app .cta { margin-top:12px; padding:8px 12px; border-radius:8px; background:var(--accent); color:#fff; border:0; }
+
+    .top-row { display:flex; gap:12px; align-items:center; }
+    .welcome { font-size:20px; font-weight:700; color:#0b1726; }
+  </style>
+</head>
+<body>
+    <!-- ========== NAVBAR ========== -->
+<style>
+  /* Navbar basic */
+  .app-navbar {
+    display:flex;
+    gap:12px;
+    align-items:center;
+    padding:12px 18px;
+    background:#0d1117; /* dark */
+    color:#e6eef8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .app-brand { font-weight:700; color:#fff; margin-right:8px; }
+  .app-links { display:flex; gap:8px; flex-wrap:wrap; }
+
+  .nav-btn {
+    display:inline-block;
+    color:#cfe3ff;
+    background:transparent;
+    border:0;
+    padding:8px 12px;
+    border-radius:8px;
+    text-decoration:none;
+    font-weight:600;
+    transition: all .12s ease;
+  }
+  .nav-btn:hover { transform:translateY(-2px); background:rgba(255,255,255,0.03); color:#fff; }
+  .nav-btn.active {
+    background:#0d6efd;
+    color:white !important;
+    box-shadow: 0 6px 18px rgba(13,110,253,0.14);
+  }
+
+  /* small spacer + right aligned controls container */
+  .nav-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+
+  /* Responsive */
+  @media (max-width:720px){
+    .app-navbar { padding:10px; gap:8px; }
+    .nav-btn { padding:7px 10px; font-size:14px; }
+  }
+</style>
+
+<header class="app-navbar" role="navigation">
+  <div class="app-brand">☕ CafePOS</div>
+
+  <nav class="app-links" aria-label="Main Navigation">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="addMenu.html">Menu</a>
+    <a class="nav-btn" href="billing.html">Billing</a>
+    <a class="nav-btn" href="inventory.html">Inventory</a>
+    <a class="nav-btn" href="report.html">Reports</a>
+  </nav>
+
+  <div class="nav-right">
+    <!-- small info or quick links (optional) -->
+    <button class="nav-btn" onclick="location.reload()">Refresh</button>
+  </div>
+</header>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <div class="container-hero">
+    <div class="top-row">
+      <div class="welcome">Welcome — CafePOS Dashboard</div>
+      <div class="ms-auto">
+        <small class="text-muted">Open pages quickly</small>
+      </div>
+    </div>
+
+    <div class="app-grid mt-3">
+      <div class="card-app" onclick="location.href='billing.html'">
+        <div class="icon" style="font-size:28px">🧾</div>
+        <div class="title">Billing</div>
+        <div class="desc">Take orders, create bills and accept payments.</div>
+        <button class="cta">Open Billing</button>
+      </div>
+
+      <div class="card-app" onclick="location.href='addMenu.html'">
+        <div class="icon" style="font-size:28px">🍽️</div>
+        <div class="title">Menu / Items</div>
+        <div class="desc">View and manage menu items.</div>
+        <button class="cta">Open Menu</button>
+      </div>
+
+      <div class="card-app" onclick="location.href='inventory.html'">
+        <div class="icon" style="font-size:28px">📦</div>
+        <div class="title">Inventory</div>
+        <div class="desc">Add items, track stock (local DB for now).</div>
+        <button class="cta">Open Inventory</button>
+      </div>
+
+      <div class="card-app" onclick="location.href='report.html'">
+        <div class="icon" style="font-size:28px">💳</div>
+        <div class="title">Reports</div>
+        <div class="desc">Detailed reports, online payments, expenses.</div>
+        <button class="cta">Open Reports</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

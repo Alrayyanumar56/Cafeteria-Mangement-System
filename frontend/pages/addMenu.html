@@ -17,18 +17,80 @@
     <link rel="stylesheet" href="../css/utilities.css">
 </head>
 <body>
+    
+<!-- ========== NAVBAR ========== -->
+<style>
+  /* Navbar basic */
+  .app-navbar {
+    display:flex;
+    gap:12px;
+    align-items:center;
+    padding:12px 18px;
+    background:#0d1117; /* dark */
+    color:#e6eef8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .app-brand { font-weight:700; color:#fff; margin-right:8px; }
+  .app-links { display:flex; gap:8px; flex-wrap:wrap; }
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary p-3">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">☕ CafePOS</a>
-        <div class="ms-auto">
-            <a href="billing.html" class="btn btn-light btn-sm">
-                <i class="bi bi-arrow-left"></i> Back to Billing
-            </a>
-        </div>
-    </div>
-</nav>
+  .nav-btn {
+    display:inline-block;
+    color:#cfe3ff;
+    background:transparent;
+    border:0;
+    padding:8px 12px;
+    border-radius:8px;
+    text-decoration:none;
+    font-weight:600;
+    transition: all .12s ease;
+  }
+  .nav-btn:hover { transform:translateY(-2px); background:rgba(255,255,255,0.03); color:#fff; }
+  .nav-btn.active {
+    background:#0d6efd;
+    color:white !important;
+    box-shadow: 0 6px 18px rgba(13,110,253,0.14);
+  }
+
+  /* small spacer + right aligned controls container */
+  .nav-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+
+  /* Responsive */
+  @media (max-width:720px){
+    .app-navbar { padding:10px; gap:8px; }
+    .nav-btn { padding:7px 10px; font-size:14px; }
+  }
+</style>
+
+<header class="app-navbar" role="navigation">
+  <div class="app-brand">☕ CafePOS</div>
+
+  <nav class="app-links" aria-label="Main Navigation">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="addMenu.html">Menu</a>
+    <a class="nav-btn" href="billing.html">Billing</a>
+    <a class="nav-btn" href="inventory.html">Inventory</a>
+    <a class="nav-btn" href="report.html">Reports</a>
+  </nav>
+
+  <div class="nav-right">
+    <!-- small info or quick links (optional) -->
+    <button class="nav-btn" onclick="location.reload()">Refresh</button>
+  </div>
+</header>
+
+<script>
+  // Highlight active link: compares href filename to current location filename
+  (function(){
+    const links = document.querySelectorAll('.app-links .nav-btn');
+    const currentFile = window.location.pathname.split('/').pop() || 'index.html';
+    links.forEach(a=>{
+      const href = a.getAttribute('href') || '';
+      if(href.split('/').pop() === currentFile) a.classList.add('active');
+    });
+  })();
+</script>
+<!-- ========== END NAVBAR ========== -->
+
 
 <div class="container mt-4">
     <div class="row">
