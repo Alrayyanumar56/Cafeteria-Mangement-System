@@ -1,37 +1,25 @@
-import express from "express";
-import mysql from "mysql2";
-import cors from "cors";
+// backend/server.js
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+require('dotenv').config();
+
+const menuRoutes = require('./routes/menu');
+const invRoutes = require('./routes/inventory');
+const salesRoutes = require('./routes/sales');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// MySQL connection
-const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "inventory_db"   // your DB name
-});
+app.use('/api/menu', menuRoutes);
+app.use('/api/inventory', invRoutes);
+app.use('/api/sales', salesRoutes);
 
-// Test DB connection
-db.connect(err => {
-    if (err) {
-        console.log("MySQL Error:", err);
-    } else {
-        console.log("MySQL Connected!");
-    }
-});
+app.get('/', (req, res) => res.json({ ok: true }));
 
-// Example route
-app.get("/items", (req, res) => {
-    const sql = "SELECT * FROM inventory";
-    db.query(sql, (err, data) => {
-        if (err) return res.json(err);
-        return res.json(data);
-    });
-});
-
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
+app.listen(PORT, () => {
+  console.log('Server listening on port', PORT);
 });
