@@ -5,10 +5,15 @@
 ```mermaid
 graph TB
     subgraph Frontend["🖥️ Frontend (HTML/JS/CSS)"]
-        BP["📄 Billing Page<br/>(billing.html)"]
+        HOME["🏠 Home/Dashboard<br/>(index.html)"]
+        BP["� Billing Page<br/>(billing.html)"]
         RP["📊 Report Page<br/>(report.html)"]
         IP["📦 Inventory Page<br/>(inventory.html)"]
         AMP["➕ Add Menu Page<br/>(addMenu.html)"]
+        HOME --> BP
+        HOME --> RP
+        HOME --> IP
+        HOME --> AMP
     end
     
     subgraph Logic["⚙️ JavaScript Logic"]
@@ -68,6 +73,45 @@ graph TB
     AMP -.-> UC
     AMP -.-> FC
     AMP -.-> BTC
+```
+
+---
+
+## Backend Layered Architecture
+
+```mermaid
+graph TB
+    subgraph Express["Express.js Server (server.js)"]
+        S["Initialize Server<br/>PORT: 3000<br/>Middleware: CORS, bodyParser<br/>Config: dotenv"]
+    end
+    
+    subgraph RouteLayer["Route Layer"]
+        MENU_RT["routes/menu.js<br/>GET /api/menu<br/>POST /api/menu<br/>DELETE /api/menu/:id"]
+        INV_RT["routes/inventory.js<br/>GET /api/inventory<br/>POST /api/inventory<br/>PUT /api/inventory/:id<br/>DELETE /api/inventory/:id"]
+        SALES_RT["routes/sales.js<br/>GET /api/sales<br/>GET /api/sales/:id<br/>POST /api/sales"]
+    end
+    
+    subgraph ControlLayer["Controller Layer"]
+        MENU_C["menuController.js<br/>getMenu()<br/>addMenu()<br/>deleteMenu()"]
+        INV_C["inventoryController.js<br/>getInventory()<br/>getItem(id)<br/>updateStock()<br/>addItem()"]
+        SALES_C["salesController.js<br/>getSales()<br/>getSaleById()<br/>createSale()"]
+    end
+    
+    subgraph ModelLayer["Model Layer"]
+        DB["models/db.js<br/>Connection Pool<br/>Query Helpers"]
+    end
+    
+    S --> MENU_RT
+    S --> INV_RT
+    S --> SALES_RT
+    
+    MENU_RT --> MENU_C
+    INV_RT --> INV_C
+    SALES_RT --> SALES_C
+    
+    MENU_C --> DB
+    INV_C --> DB
+    SALES_C --> DB
 ```
 
 ---
@@ -158,6 +202,7 @@ graph LR
 ### Frontend Pages
 | Page | Purpose | Key Functions | localStorage Keys |
 |------|---------|----------------|-------------------|
+| **index.html** | Home/Dashboard with navigation | Navigation links to all modules | None (home page only) |
 | **billing.html** | Point-of-Sale cart & checkout | `addToCart()`, `checkout()`, `decreaseQty()`, `holdOrder()` | `salesRecords`, `salesBills`, `inventory` |
 | **report.html** | Analytics, bill details, CSV export | `buildAggregates()`, `renderBillsList()`, `openBillModal()`, `exportCSV()` | `salesRecords`, `salesBills` |
 | **inventory.html** | Stock management CRUD | `loadInventory()`, `addItem()`, `deleteItem()`, `updateItem()` | `inventory` |
@@ -213,6 +258,60 @@ graph LR
 | `buttons.css` | Button components |
 | `dashboard.css` | General layout & dashboard |
 
+### Backend Modules (Express.js)
+
+#### `server.js`
+- **Purpose:** Initialize Express server, middleware, routes
+- **Features:**
+  - CORS enabled for cross-origin requests
+  - Body parser for JSON payloads
+  - dotenv for environment variables
+  - Listens on PORT (default: 3000)
+
+#### Routes
+
+**`routes/menu.js`**
+- `GET /api/menu` — Fetch all menu items
+- `POST /api/menu` — Create new menu item
+- `DELETE /api/menu/:id` — Remove menu item
+
+**`routes/inventory.js`**
+- `GET /api/inventory` — Fetch all inventory items
+- `GET /api/inventory/:id` — Fetch single item
+- `POST /api/inventory` — Add inventory item
+- `PUT /api/inventory/:id` — Update inventory item
+- `DELETE /api/inventory/:id` — Delete inventory item
+
+**`routes/sales.js`**
+- `GET /api/sales` — Fetch all sales records
+- `GET /api/sales/:id` — Fetch single sale/bill
+- `POST /api/sales` — Create new sale record
+
+#### Controllers
+
+**`controllers/menuController.js`**
+- `getMenu()` — Retrieve all menu items
+- `addMenu(itemData)` — Insert menu item
+- `deleteMenu(id)` — Remove menu item
+
+**`controllers/inventoryController.js`**
+- `getInventory()` — Retrieve all stock
+- `getItem(id)` — Get single item
+- `updateStock(id, qty)` — Update quantity
+- `addItem(itemData)` — Add new stock item
+
+**`controllers/salesController.js`**
+- `getSales()` — Retrieve all sales
+- `getSaleById(id)` — Get single sale
+- `createSale(saleData)` — Record new sale
+
+#### Database
+
+**`models/db.js`**
+- Database connection pool
+- Query execution helpers
+- Connection management
+
 ---
 
 ## Key Features & Flows
@@ -261,46 +360,71 @@ graph LR
 
 ---
 
-## File Structure
+## File Structure (Complete)
 
 ```
 Cafeteria-Management-System/
-├── backend/
-│   ├── server.js
-│   ├── package.json
-│   ├── controllers/
-│   │   └── inventoryController.js
-│   ├── models/
-│   │   └── inventoryModel.js
-│   └── routes/
-│       └── inventory.js
 ├── frontend/
 │   ├── pages/
-│   │   ├── billing.html
-│   │   ├── report.html
-│   │   ├── inventory.html
-│   │   └── addMenu.html
+│   │   ├── index.html          (Dashboard entry point)
+│   │   ├── billing.html        (POS cart & checkout)
+│   │   ├── report.html         (Analytics & bills)
+│   │   ├── inventory.html      (Stock management)
+│   │   └── addMenu.html        (Menu item management)
 │   ├── js/
-│   │   ├── billing.js
-│   │   ├── report.js
-│   │   ├── inventory.js
-│   │   └── addMenu.js
+│   │   ├── billing.js          (Cart & checkout logic)
+│   │   ├── report.js           (Analytics & reports logic)
+│   │   ├── inventory.js        (Inventory CRUD)
+│   │   └── addMenu.js          (Menu management)
 │   └── css/
-│       ├── utilities.css
-│       ├── billing.css
-│       ├── report.css
-│       ├── inventory.css
-│       ├── forms.css
-│       ├── tables.css
-│       ├── buttons.css
-│       └── dashboard.css
+│       ├── utilities.css       (Utility classes)
+│       ├── billing.css         (Billing page styles)
+│       ├── report.css          (Report page styles)
+│       ├── inventory.css       (Inventory page styles)
+│       ├── forms.css           (Form & modal styles)
+│       ├── tables.css          (Table styles)
+│       ├── buttons.css         (Button components)
+│       └── dashboard.css       (Layout & dashboard)
+├── backend/
+│   ├── server.js               (Express server entry)
+│   ├── package.json            (Dependencies)
+│   ├── .env                    (Environment variables)
+│   ├── controllers/
+│   │   ├── menuController.js   (Menu CRUD logic)
+│   │   ├── inventoryController.js (Inventory logic)
+│   │   └── salesController.js  (Sales logic)
+│   ├── models/
+│   │   └── db.js               (Database connection)
+│   ├── routes/
+│   │   ├── menu.js             (Menu API endpoints)
+│   │   ├── inventory.js        (Inventory API endpoints)
+│   │   └── sales.js            (Sales API endpoints)
+│   └── node_modules/           (npm packages)
 ├── database/
+│   └── (Empty - for future SQL scripts)
 ├── docs/
-│   └── ARCHITECTURE.md (this file)
-└── README.md
+│   └── ARCHITECTURE.md         (This file)
+└── .gitignore, README.md, etc.
 ```
+
+---
+
+## Current Implementation Status
+
+| Component | File(s) | Status | Details |
+|-----------|---------|--------|---------|
+| **Frontend Pages** | 5 HTML files | ✅ Complete | index, billing, report, inventory, addMenu |
+| **Frontend Logic** | 4 JS files | ✅ Complete | All modules with localStorage persistence |
+| **Frontend Styles** | 8 CSS files | ✅ Complete | Responsive Bootstrap-based styling |
+| **Backend Server** | server.js | ✅ Created | Express setup with CORS & middleware |
+| **API Routes** | 3 route files | ✅ Created | menu, inventory, sales endpoints |
+| **Controllers** | 3 controller files | ✅ Created | menuController, inventoryController, salesController |
+| **Database Models** | db.js | ✅ Created | Connection pool ready |
+| **Database Setup** | /database | ⏳ Pending | No SQL scripts yet |
+| **Frontend-Backend Integration** | fetch() calls | ⏳ Pending | Routes created, frontend ready for API calls |
 
 ---
 
 **Last Updated:** November 29, 2025
 **Project:** Cafeteria Management System (POS)
+**Architecture:** Full-stack ready (frontend 100%, backend 70%, database 0%)
