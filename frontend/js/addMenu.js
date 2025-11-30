@@ -10,7 +10,7 @@ document.getElementById('addMenuForm').addEventListener('submit', async function
     const itemName = document.getElementById('itemName').value.trim();
     const itemCategory = document.getElementById('itemCategory').value;
     const itemPrice = parseFloat(document.getElementById('itemPrice').value);
-    const itemImage = document.getElementById('itemImage').value.trim() || '/mnt/data/ad0b9d0e-8045-4937-a0a4-acb774f0f11b.png';
+    const itemImage = document.getElementById('itemImage').value.trim() || 'https://via.placeholder.com/150';
 
     // Validate inputs
     if (!itemName || !itemCategory || !itemPrice || itemPrice <= 0) {
@@ -115,6 +115,26 @@ async function deleteMenuItem(itemId) {
     } catch (err) {
         console.error(err);
         alert('Error deleting menu item.');
+    }
+}
+
+// Clear all menu items (confirmation required).
+async function clearAllMenuItems() {
+    if (!confirm('Are you sure you want to delete ALL menu items? This action cannot be undone.')) return;
+    try {
+        const res = await fetch('http://localhost:3000/api/menu');
+        const items = await res.json();
+        if (!items.length) { alert('No menu items to delete'); return; }
+
+        // Delete all items sequentially to avoid server overload
+        for (const it of items) {
+            await fetch(`http://localhost:3000/api/menu/${it.id}`, { method: 'DELETE' });
+        }
+        alert('All menu items have been deleted.');
+        fetchMenuItems();
+    } catch (err) {
+        console.error(err);
+        alert('Error deleting menu items. See console.');
     }
 }
 

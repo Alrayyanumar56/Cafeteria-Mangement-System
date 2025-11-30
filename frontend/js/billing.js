@@ -156,3 +156,45 @@ function updateBalance() {
 
 document.getElementById('cashInput')?.addEventListener('input', updateBalance);
 document.getElementById('onlineInput')?.addEventListener('input', updateBalance);
+
+// Add a custom item from the modal form into the cart
+function addCustomItem() {
+    const nameEl = document.getElementById('customName');
+    const priceEl = document.getElementById('customPrice');
+    const qtyEl = document.getElementById('customQty');
+    if (!nameEl || !priceEl || !qtyEl) return;
+    const name = nameEl.value.trim();
+    const price = parseFloat(priceEl.value) || 0;
+    const qty = parseInt(qtyEl.value) || 1;
+    if (!name || price <= 0 || qty <= 0) { alert('Please provide valid name, price and quantity for the custom item.'); return; }
+
+    // Custom items receive a unique id to avoid conflicts with menu items
+    const id = `custom-${Date.now()}`;
+    cart.push({ id, name, price, qty });
+    renderCart();
+    // clear modal inputs and close modal
+    nameEl.value = '';
+    priceEl.value = '';
+    qtyEl.value = '1';
+    const modalEl = document.getElementById('customItemModal');
+    try { const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl); modal.hide(); } catch (e) { /* ignore */ }
+}
+
+// Hold the current cart order by saving it to localStorage under 'heldOrders'
+function holdOrder() {
+    if (!cart.length) { alert('Cart is empty. Nothing to hold.'); return; }
+    const held = JSON.parse(localStorage.getItem('heldOrders') || '[]');
+    const total = parseFloat(document.getElementById('totalAmount').innerText) || 0;
+    const payload = {
+        id: `held-${Date.now()}`,
+        cart: [...cart],
+        total,
+        createdAt: new Date().toISOString()
+    };
+    held.push(payload);
+    localStorage.setItem('heldOrders', JSON.stringify(held));
+    // Clear cart and update UI
+    cart.length = 0;
+    renderCart();
+    alert('Order held successfully. You can implement a UI later to restore held orders.');
+}
