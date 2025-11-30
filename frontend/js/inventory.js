@@ -7,9 +7,22 @@ async function loadInventory() {
         const res = await fetch('http://localhost:3000/api/inventory');
         let inventory = await res.json();
 
+        // Transform backend fields to frontend expected fields
+        inventory = inventory.map(item => {
+            const note = item.note ? JSON.parse(item.note) : {};
+            return {
+                id: item.id,
+                name: item.item_name,
+                category: note.category || '',
+                price: note.price || 0,
+                qty: item.quantity,
+                unit: item.unit
+            };
+        });
+
         inventory
-            .filter(item => 
-                item.name.toLowerCase().includes(searchTerm) || 
+            .filter(item =>
+                item.name.toLowerCase().includes(searchTerm) ||
                 item.category.toLowerCase().includes(searchTerm) ||
                 item.unit.toLowerCase().includes(searchTerm)
             )
@@ -39,7 +52,7 @@ async function loadInventory() {
     }
 }
 
-// Initialize UI events
+// DOMContentLoaded and search
 document.addEventListener('DOMContentLoaded', function() {
     loadInventory();
     const search = document.getElementById('search');
@@ -57,7 +70,6 @@ async function addItem() {
 
     if (!name || !qty) { alert('Please enter valid name and quantity'); return; }
 
-    // use note field to include category/price since backend schema expects name, qty, unit, note
     const note = JSON.stringify({ category, price });
     const payload = { item_name: name, quantity: qty, unit, note };
 
@@ -82,10 +94,9 @@ async function addItem() {
             if (!res.ok) throw new Error('Failed to add item');
             alert('Item added successfully');
         }
-        // Reset form and hide modal
         form.reset();
         const modalEl = document.getElementById('addItemModal');
-        try { const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl); modal.hide(); } catch (e) { /* ignore */ }
+        try { const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl); modal.hide(); } catch (e) { }
         loadInventory();
     } catch (err) {
         console.error(err);
@@ -100,6 +111,7 @@ async function openUpdateModal(id) {
         const items = await res.json();
         const item = items.find(i => Number(i.id) === Number(id));
         if (!item) throw new Error('Item not found');
+
         const form = document.getElementById('addItemForm');
         document.getElementById('itemName').value = item.item_name || '';
         const note = item.note ? JSON.parse(item.note) : {};
@@ -109,15 +121,14 @@ async function openUpdateModal(id) {
         document.getElementById('itemUnit').value = item.unit || 'pcs';
         form.dataset.editId = id;
         document.querySelector('#addItemModal .modal-title').textContent = 'Update Item';
-        var myModal = new bootstrap.Modal(document.getElementById('addItemModal'));
-        myModal.show();
+        new bootstrap.Modal(document.getElementById('addItemModal')).show();
     } catch (err) {
         console.error(err);
         alert('Failed to load item for update');
     }
 }
 
-// Delete an item by id
+// Delete an item
 async function deleteItem(id) {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
