@@ -121,12 +121,17 @@ async function deleteMenuItem(itemId) {
 // Update statistics
 function updateStatistics(menuItems) {
     document.getElementById('totalItems').textContent = menuItems.length;
-
     const breakfastCount = menuItems.filter(i => i.category === 'breakfast').length;
-    const noodlesCount = menuItems.filter(i => i.category === 'noodles').length;
-    const beveragesCount = menuItems.filter(i => i.category === 'beverages').length;
-
+    const mealsCount = menuItems.filter(i => i.category === 'meals').length;
+    const bakeryCount = menuItems.filter(i => i.category === 'bakery').length;
+    const snacksCount = menuItems.filter(i => i.category === 'snacks').length;
+    // Merge cold-drinks and hot-drinks into drinks
+    const drinksCount = menuItems.filter(i => i.category === 'drinks' || i.category === 'cold-drinks' || i.category === 'hot-drinks').length;
+    const shakesCount = menuItems.filter(i => i.category === 'shakes').length;
     document.getElementById('breakfastCount').textContent = breakfastCount;
-    document.getElementById('noodlesCount').textContent = noodlesCount;
-    document.getElementById('beveragesCount').textContent = beveragesCount;
+    document.getElementById('mealsCount').textContent = mealsCount;
+    document.getElementById('bakeryCount').textContent = bakeryCount;
+    document.getElementById('snacksCount').textContent = snacksCount;
+    document.getElementById('drinksCount').textContent = drinksCount;
+    document.getElementById('shakesCount').textContent = shakesCount;
 }
