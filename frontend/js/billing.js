@@ -3,7 +3,32 @@ const cart = [];
 // Load menu items from backend
 document.addEventListener('DOMContentLoaded', function() {
     loadMenuItems();
+    setupCategoryFilter();
 });
+// Set up category filter click events
+function setupCategoryFilter() {
+    const categoryList = document.getElementById('categoryList');
+    if (!categoryList) return;
+    categoryList.addEventListener('click', function(e) {
+        if (e.target && e.target.tagName === 'LI') {
+            // Remove active from all
+            Array.from(categoryList.children).forEach(li => li.classList.remove('active'));
+            e.target.classList.add('active');
+            filterProductsByCategory(e.target.getAttribute('data-category'));
+        }
+    });
+}
+
+function filterProductsByCategory(category) {
+    const items = document.querySelectorAll('.product-item');
+    items.forEach(item => {
+        if (category === 'all' || item.getAttribute('data-category') === category) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
 
 async function loadMenuItems() {
     try {
@@ -22,10 +47,10 @@ function populateProductGrid(menuItems) {
 
     menuItems.forEach(item => {
         const priceNum = parseFloat(item.price); // convert price to number
-
+        const category = item.category;
         const productDiv = document.createElement('div');
         productDiv.className = 'col-6 col-sm-4 col-lg-3 product-item';
-        productDiv.setAttribute('data-category', item.category);
+        productDiv.setAttribute('data-category', category);
 
         productDiv.innerHTML = `
             <div class="card product-card" onclick="addToCart(${item.id},'${item.name}',${priceNum})">
