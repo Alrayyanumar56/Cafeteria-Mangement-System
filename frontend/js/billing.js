@@ -47,7 +47,10 @@ function populateProductGrid(menuItems) {
 
     menuItems.forEach(item => {
         const priceNum = parseFloat(item.price); // convert price to number
-        const category = item.category;
+        let category = item.category;
+        if (category === 'cold-drinks' || category === 'hot-drinks') category = 'drinks';
+        if (category === 'fast-food' || category === 'essentials') return; // skip removed categories
+
         const productDiv = document.createElement('div');
         productDiv.className = 'col-6 col-sm-4 col-lg-3 product-item';
         productDiv.setAttribute('data-category', category);
