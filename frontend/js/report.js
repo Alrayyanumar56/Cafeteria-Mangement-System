@@ -1,198 +1,140 @@
-// ----------------------------
-// Helper: Fetch bills from backend
-// ----------------------------
-async function fetchSalesBills() {
-    try {
-        const res = await fetch('http://localhost:3000/api/salesBills');
-        const data = await res.json();
-        // Map bills into usable format
-        return data.map(b => ({
-            id: b.id,
-            date: new Date(b.date),
-            items: JSON.parse(b.items || '[]'),
-            total: Number(b.total || 0),
-            payment: b.payment || 'Mixed'
-        }));
-    } catch(e) {
-        console.error('Error fetching bills:', e);
-        return [];
+// ===== Sample Offline Sales Data =====
+const sales24 = [
+    {
+        id: 1,
+        items: [
+            { id: 5, name: "Sandwich", price: 150, qty: 1 },
+            { id: 4, name: "Coffee", price: 100, qty: 1 },
+            { id: 3, name: "Tea", price: 70, qty: 1 }
+        ],
+        total: 320,
+        payment: "cash",
+        date: new Date("2025-11-30 21:16:49")
+    },
+    {
+        id: 2,
+        items: [
+            { id: 3, name: "Tea", price: 70, qty: 2 }
+        ],
+        total: 140,
+        payment: "online",
+        date: new Date("2025-11-30 22:10:00")
     }
+];
+
+// ===== Populate Table =====
+function populateSalesTable(bills) {
+    const tbody = document.getElementById('salesTableBody');
+    tbody.innerHTML = '';
+    bills.forEach(b => {
+        b.items.forEach(it => {
+            tbody.innerHTML += `<tr>
+                <td>${b.date.toLocaleString()}</td>
+                <td>${it.name}</td>
+                <td>${it.qty}</td>
+                <td>PKR ${it.price}</td>
+                <td>PKR ${it.qty * it.price}</td>
+                <td>${b.payment}</td>
+            </tr>`;
+        });
+    });
+    if(bills.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="text-center">No records</td></tr>';
 }
 
-// ----------------------------
-// Apply filters
-// ----------------------------
-let filteredBills = [];
+// ===== Calculate Totals =====
+function calculateTotals(bills) {
+    let cash = 0, online = 0;
+    bills.forEach(b => b.payment === 'cash' ? cash += b.total : online += b.total);
+    document.getElementById('totalCash').textContent = `PKR ${cash}`;
+    document.getElementById('totalOnline').textContent = `PKR ${online}`;
+    document.getElementById('totalAmount').textContent = `PKR ${cash + online}`;
+    document.getElementById('totalOrders').textContent = bills.length;
+}
 
+// ===== Filters =====
 function applyFilters() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    const paymentFilter = document.getElementById('paymentFilter').value;
+    const start = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
+    const end = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
+    const payment = document.getElementById('paymentFilter').value;
 
-    filteredBills = billsData.filter(bill => {
-        let keep = true;
-        if(startDate) keep = keep && (bill.date >= new Date(startDate));
-        if(endDate) keep = keep && (bill.date <= new Date(endDate + 'T23:59:59'));
-        if(paymentFilter !== 'all') keep = keep && (bill.payment === paymentFilter);
-        return keep;
+    const filtered = sales24.filter(b => {
+        let ok = true;
+        if(start) ok = ok && b.date >= start;
+        if(end) ok = ok && b.date <= end;
+        if(payment !== 'all') ok = ok && b.payment === payment;
+        return ok;
     });
 
-    renderBills();
-    calculateTotals();
-    initCharts();
+    populateSalesTable(filtered);
+    calculateTotals(filtered);
 }
 
-// ----------------------------
-// Render totals
-// ----------------------------
-function calculateTotals() {
-    const cash = filteredBills.filter(b => b.payment === 'cash')
-        .reduce((sum,b) => sum + b.total, 0);
-    const online = filteredBills.filter(b => b.payment !== 'cash')
-        .reduce((sum,b) => sum + b.total, 0);
-    document.getElementById('totalCash').textContent = `PKR ${cash.toLocaleString()}`;
-    document.getElementById('totalOnline').textContent = `PKR ${online.toLocaleString()}`;
-    document.getElementById('totalAmount').textContent = `PKR ${(cash+online).toLocaleString()}`;
-    document.getElementById('totalOrders').textContent = filteredBills.length;
-}
-
-// ----------------------------
-// Render bills list
-// ----------------------------
-function renderBills() {
-    const container = document.getElementById('billsList');
-    container.innerHTML = '';
-    if(!filteredBills.length){
-        container.innerHTML = '<div class="text-muted">No bills found</div>';
-        return;
-    }
-
-    filteredBills.slice().reverse().forEach(b => {
-        const badgeClass = b.payment === 'cash' ? 'bg-success' :
-                           b.payment === 'online' ? 'bg-info' : 'bg-secondary';
-        const badgeText = b.payment.charAt(0).toUpperCase() + b.payment.slice(1);
-
-        const div = document.createElement('div');
-        div.className = 'bill-card card mb-2 p-2';
-        div.innerHTML = `
-            <div class="d-flex justify-content-between">
-                <div>
-                    <strong>Bill #${b.id}</strong>
-                    <div class="text-muted small">${b.date.toLocaleString()}</div>
-                </div>
-                <div class="text-end">
-                    <span class="badge ${badgeClass} mb-1">${badgeText}</span>
-                    <div class="fw-bold">PKR ${b.total.toLocaleString()}</div>
-                    <div class="small text-muted">Items: ${b.items.length}</div>
-                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="showBillModal(${b.id})">View</button>
-                </div>
-            </div>
-        `;
-        container.appendChild(div);
+// ===== Export CSV =====
+function exportReport() {
+    let csv = 'Date,Item,Qty,Price,Total,Payment\n';
+    sales24.forEach(b => {
+        b.items.forEach(it => {
+            csv += `${b.date.toLocaleString()},${it.name},${it.qty},${it.price},${it.qty*it.price},${b.payment}\n`;
+        });
     });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Sales_Report.csv';
+    a.click();
 }
 
-// ----------------------------
-// Show modal for bill details
-// ----------------------------
-function showBillModal(billId) {
-    const bill = filteredBills.find(b => b.id === billId);
-    if(!bill) return;
+// ===== Charts =====
+function initCharts(bills) {
+    const itemsFlat = [];
+    bills.forEach(b => b.items.forEach(it => itemsFlat.push({ ...it, payment: b.payment, date: b.date })));
 
-    document.getElementById('billModalTitle').textContent = `Bill #${bill.id}`;
-    const body = document.getElementById('billModalBody');
-    body.innerHTML = '<table class="table table-sm"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>' +
-        bill.items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>PKR ${i.price.toLocaleString()}</td><td>PKR ${(i.qty*i.price).toLocaleString()}</td></tr>`).join('') +
-        `</tbody></table>
-         <div class="text-end fw-bold mt-2">Total: PKR ${bill.total.toLocaleString()}</div>`;
-    const modal = new bootstrap.Modal(document.getElementById('billModal'));
-    modal.show();
-}
-
-// ----------------------------
-// Initialize charts
-// ----------------------------
-let charts = {};
-
-function initCharts() {
-    const items = filteredBills.flatMap(b => b.items.map(i => ({
-        name: i.name,
-        qty: i.qty,
-        price: i.price,
-        payment: b.payment
-    })));
-
-    // Top items
-    const agg = {};
-    items.forEach(i => agg[i.name] = (agg[i.name]||0)+i.qty);
-    const topItems = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,5);
-
-    // Destroy old charts
-    for(const c of Object.values(charts)) if(c) c.destroy();
-
-    // Daily sales (last 7 days)
-    const last7 = Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().split('T')[0]; });
-    const dailyCash = last7.map(d=>items.filter(it=>it.payment==='cash' && it.date?.startsWith?.(d)).reduce((a,b)=>a+b.qty*b.price,0));
-    const dailyOnline = last7.map(d=>items.filter(it=>it.payment!=='cash' && it.date?.startsWith?.(d)).reduce((a,b)=>a+b.qty*b.price,0));
-
-    charts.daily = new Chart(document.getElementById('dailySalesChart').getContext('2d'),{
-        type:'bar',
-        data:{
-            labels:last7,
-            datasets:[
-                {label:'Cash',data:dailyCash,backgroundColor:'rgba(25,135,84,0.7)',borderColor:'rgb(25,135,84)',borderWidth:2},
-                {label:'Online',data:dailyOnline,backgroundColor:'rgba(13,202,240,0.7)',borderColor:'rgb(13,202,240)',borderWidth:2}
+    // Daily Sales Chart
+    const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
+    const dates = [...new Set(itemsFlat.map(i => i.date.toISOString().split('T')[0]))].sort();
+    const cashDaily = dates.map(d => itemsFlat.filter(i => i.date.toISOString().startsWith(d) && i.payment==='cash').reduce((a,b)=>a+b.qty*b.price,0));
+    const onlineDaily = dates.map(d => itemsFlat.filter(i => i.date.toISOString().startsWith(d) && i.payment==='online').reduce((a,b)=>a+b.qty*b.price,0));
+    new Chart(dailyCtx, {
+        type: 'bar',
+        data: {
+            labels: dates,
+            datasets: [
+                { label: 'Cash', data: cashDaily, backgroundColor:'rgba(25,135,84,0.7)' },
+                { label: 'Online', data: onlineDaily, backgroundColor:'rgba(13,202,240,0.7)' }
             ]
         }
     });
 
-    // Payment chart
-    const totalCash = items.filter(i=>i.payment==='cash').reduce((a,b)=>a+b.qty*b.price,0);
-    const totalOnline = items.filter(i=>i.payment!=='cash').reduce((a,b)=>a+b.qty*b.price,0);
-    charts.payment = new Chart(document.getElementById('paymentChart').getContext('2d'),{
-        type:'doughnut',
-        data:{
-            labels:['Cash','Online'],
-            datasets:[{data:[totalCash,totalOnline],backgroundColor:['rgba(25,135,84,0.8)','rgba(13,202,240,0.8)'],borderColor:'#fff'}]
+    // Payment Method Chart
+    const payCtx = document.getElementById('paymentChart').getContext('2d');
+    const totalCash = itemsFlat.filter(i=>i.payment==='cash').reduce((a,b)=>a+b.qty*b.price,0);
+    const totalOnline = itemsFlat.filter(i=>i.payment==='online').reduce((a,b)=>a+b.qty*b.price,0);
+    new Chart(payCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Cash','Online'],
+            datasets: [{ data: [totalCash,totalOnline], backgroundColor:['rgba(25,135,84,0.8)','rgba(13,202,240,0.8)'] }]
         }
     });
 
-    // Top items chart
-    charts.top = new Chart(document.getElementById('topItemsChart').getContext('2d'),{
-        type:'bar',
-        data:{
+    // Top Items Chart
+    const topMap = {};
+    itemsFlat.forEach(it => topMap[it.name] = (topMap[it.name]||0)+it.qty);
+    const topItems = Object.entries(topMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const topCtx = document.getElementById('topItemsChart').getContext('2d');
+    new Chart(topCtx, {
+        type: 'bar',
+        data: {
             labels: topItems.map(t=>t[0]),
-            datasets:[{label:'Quantity Sold',data:topItems.map(t=>t[1]),backgroundColor:'rgba(13,110,253,0.7)',borderColor:'rgb(13,110,253)',borderWidth:2}]
+            datasets: [{ label: 'Quantity Sold', data: topItems.map(t=>t[1]), backgroundColor:'rgba(13,110,253,0.7)' }]
         },
-        options:{indexAxis:'y'}
+        options: { indexAxis:'y' }
     });
 }
 
-// ----------------------------
-// Export to CSV
-// ----------------------------
-function exportReport() {
-    if(!filteredBills.length) return alert('No data to export');
-    let csv = 'Bill ID,Date,Payment,Total,Items\n';
-    filteredBills.forEach(b => {
-        const itemsStr = b.items.map(i=>`${i.name} x${i.qty}`).join('; ');
-        csv += `${b.id},"${b.date.toLocaleString()}",${b.payment},${b.total},"${itemsStr}"\n`;
-    });
-    const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'SalesReport.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// ----------------------------
-// Init page
-// ----------------------------
-let billsData = [];
-document.addEventListener('DOMContentLoaded',async()=>{
-    billsData = await fetchSalesBills();
-    filteredBills = billsData.slice(); // initially all bills
-    applyFilters(); // render everything
+// ===== Init =====
+document.addEventListener('DOMContentLoaded', () => {
+    populateSalesTable(sales24);
+    calculateTotals(sales24);
+    initCharts(sales24);
 });
