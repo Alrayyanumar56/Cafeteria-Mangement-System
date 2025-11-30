@@ -116,6 +116,18 @@ graph TB
 
 ---
 
+## Updates & Current Mismatches (summary)
+
+- The repository recently consolidated route registration into a single router file: `backend/routes/api.js`. That file mounts the API under `/api` and exposes the endpoints listed in the Routes section below.
+- The `menuController` contains write handlers (`create`, `update`, `remove`) but the router currently only exposes `GET /api/menu`. If the UI needs to create/delete menu items (the frontend posts to `/api/menu`), add the POST/PUT/DELETE routes to `backend/routes/api.js` or re-add a `routes/menu.js` that is mounted by `server.js`.
+- `report.js` in the frontend expects `GET /api/salesBills` and `GET /api/salesRecords`; those endpoints are implemented in `salesController` and are mounted in `routes/api.js` (so reporting endpoints exist). Earlier documentation that claimed these endpoints were missing is now outdated.
+- Database connection defaults in `backend/models/db.js` include `port: 3307` and a default `DB_PASS` value in code; rely on a proper `backend/.env` (add `backend/.env.example`) to avoid surprises.
+- Many frontend modules still use `localStorage` for UI convenience (for example `heldOrders`) but the canonical persistence for menu, inventory and sales is the backend database. Decide on a single source of truth (recommended: backend DB) and gradually remove full localStorage dependence for persistent data.
+
+---
+
+---
+
 ## Data Flow Diagram
 
 ### 1. Billing & Checkout Flow
@@ -268,24 +280,23 @@ graph LR
   - dotenv for environment variables
   - Listens on PORT (default: 3000)
 
-#### Routes
+#### Routes (actual router: `backend/routes/api.js`)
 
-**`routes/menu.js`**
-- `GET /api/menu` — Fetch all menu items
-- `POST /api/menu` — Create new menu item
-- `DELETE /api/menu/:id` — Remove menu item
+The project uses a single API router file: `backend/routes/api.js`. The router mounts a set of endpoints under the `/api` prefix. Current mounted endpoints are:
 
-**`routes/inventory.js`**
-- `GET /api/inventory` — Fetch all inventory items
-- `GET /api/inventory/:id` — Fetch single item
-- `POST /api/inventory` — Add inventory item
-- `PUT /api/inventory/:id` — Update inventory item
-- `DELETE /api/inventory/:id` — Delete inventory item
+- `GET /api/menu` — read menu items (menuController.getAll)
+- Inventory endpoints (inventoryController):
+    - `GET /api/inventory`
+    - `POST /api/inventory`
+    - `PUT /api/inventory/:id`
+    - `DELETE /api/inventory/:id`
+- Sales / reporting endpoints (salesController):
+    - `GET /api/sales` — raw sales records
+    - `POST /api/sales` — create a sale (stores items in `items_json`)
+    - `GET /api/salesRecords` — flattened per-item records for reporting
+    - `GET /api/salesBills` — invoice-level bills for reporting
 
-**`routes/sales.js`**
-- `GET /api/sales` — Fetch all sales records
-- `GET /api/sales/:id` — Fetch single sale/bill
-- `POST /api/sales` — Create new sale record
+Note: Although `menuController` implements `create`, `update`, and `remove` handlers, the API router currently only exposes the read endpoint for menu (`GET /api/menu`). If the frontend must support creating or deleting menu items via the API, add the corresponding POST/PUT/DELETE routes to `backend/routes/api.js` (or restore a dedicated `routes/menu.js` that is mounted by the server).
 
 #### Controllers
 
@@ -317,13 +328,12 @@ graph LR
 ## Key Features & Flows
 
 ### ✅ Sales Persistence
-- When checkout completes → save per-item records to `salesRecords` + invoice-level record to `salesBills`
-- Both stored in browser `localStorage` for offline-first capability
+- When checkout completes the frontend POSTs the sale to `POST /api/sales` and the backend persists the sale in the database (table: `sales`). Each sale stores `items_json`, `total_amount`, and `payment_type`.
+- The frontend still maintains short-lived UI state (held orders) in `localStorage`, but the canonical sales data is the backend DB.
 
 ### ✅ Inventory Synchronization
-- Inventory loaded from `localStorage` on app startup
-- On checkout, matching items decremented by quantity sold
-- Updated inventory persisted back to `localStorage`
+- Inventory is stored in the backend `inventory` table and exposed via `GET /api/inventory` and updated via `PUT /api/inventory/:id`.
+- Some frontend code may update local UI or use `localStorage` for convenience, but inventory for multi-terminal correctness should be updated via the backend API. Recommended: move inventory decrement to the backend or call the inventory update API after a sale completes.
 
 ### ✅ Reports & Analytics
 - Charts: Daily revenue, Top-selling items, Payment breakdown
@@ -425,6 +435,6 @@ Cafeteria-Management-System/
 
 ---
 
-**Last Updated:** November 29, 2025
+**Last Updated:** November 30, 2025
 **Project:** Cafeteria Management System (POS)
-**Architecture:** Full-stack ready (frontend 100%, backend 70%, database 0%)
+**Architecture:** Hybrid: frontend static UI + Express API (backend implemented). Database schema present but SQL seeds pending.
