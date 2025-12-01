@@ -30,23 +30,19 @@ exports.create = async (req, res) => {
 exports.getSalesRecords = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM sales ORDER BY created_at DESC');
-
     const records = [];
-    rows.forEach(sale => {
-      let items = [];
-      try { items = JSON.parse(sale.items_json); } catch { items = []; }
-
+    rows.forEach(r => {
+      const items = JSON.parse(r.items_json || '[]');
       items.forEach(it => {
         records.push({
-          date: sale.created_at.toISOString().split("T")[0],
+          date: r.created_at.toISOString().split('T')[0],
           name: it.name,
-          qty: Number(it.qty) || 0,
-          price: Number(it.price) || 0,
-          payment: sale.payment_type || "cash"
+          qty: it.qty,
+          price: it.price,
+          payment: r.payment_type
         });
       });
     });
-
     res.json(records);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -57,32 +53,17 @@ exports.getSalesRecords = async (req, res) => {
 exports.getSalesBills = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM sales ORDER BY created_at DESC');
-
-    const bills = rows.map(sale => {
-      let items = [];
-      try { items = JSON.parse(sale.items_json); } catch { items = []; }
-
-      return {
-        id: sale.id,
-        date: sale.created_at,
-        dateSimple: sale.created_at.toISOString().split("T")[0],
-
-        items: items.map(it => ({
-          id: it.id,
-          name: it.name,
-          qty: Number(it.qty) || 0,
-          price: Number(it.price) || 0
-        })),
-
-        total: Number(sale.total_amount) || 0,
-
-        payments: {
-          cash: sale.payment_type === "cash" ? Number(sale.total_amount) : 0,
-          online: sale.payment_type === "online" ? Number(sale.total_amount) : 0
-        }
-      };
-    });
-
+    const bills = rows.map(r => ({
+      id: r.id,
+      date: r.created_at,
+      dateSimple: r.created_at.toISOString().split('T')[0],
+      items: JSON.parse(r.items_json || '[]'),
+      total: r.total_amount,
+      payments: {
+        cash: r.payment_type === 'cash' ? r.total_amount : 0,
+        online: r.payment_type === 'online' ? r.total_amount : 0
+      }
+    }));
     res.json(bills);
   } catch (err) {
     res.status(500).json({ error: err.message });

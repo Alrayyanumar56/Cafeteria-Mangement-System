@@ -1,11 +1,24 @@
 // backend/server.js
 const express = require('express');
+const bodyParser = require('body-parser');
 const cors = require('cors');
+require('dotenv').config();
+
 const apiRoutes = require('./routes/api');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
+
+// Use unified routes
 app.use('/api', apiRoutes);
 
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+app.get('/', (req, res) => {
+  res.json({ ok: true });
+});
+
+app.listen(PORT, () => {
+  console.log('Server listening on port', PORT);
+});
