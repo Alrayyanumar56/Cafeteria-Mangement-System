@@ -119,12 +119,12 @@ async function checkout() {
     if (cart.length === 0) { alert("Cart is empty!"); return; }
     if (paid < total) { alert("Insufficient payment!"); return; }
 
-    const saleData = {
-        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
-        total_amount: total,
-        payment_type: cash >= total ? 'cash' : (cash > 0 && online > 0 ? 'mixed' : 'online')
-    };
-
+const saleData = {
+  items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+  total_amount: total,
+  cash_amount: cash,
+  online_amount: online
+}
     try {
         const res = await fetch('http://localhost:3000/api/sales', {
             method: 'POST',

@@ -20,17 +20,17 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    let { name, category, price, unit } = req.body;
+    let { name, category, price, unit , image } = req.body;
     // Merge/ignore categories
     if (category === 'cold-drinks' || category === 'hot-drinks') category = 'drinks';
     if (category === 'fast-food' || category === 'essentials') {
       return res.status(400).json({ error: 'Category not allowed' });
     }
     const [result] = await db.query(
-      'INSERT INTO menu_items (name, category, price, unit) VALUES (?, ?, ?, ?)',
-      [name, category, price, unit]
+      'INSERT INTO menu_items (name, category, price, unit, image) VALUES (?, ?, ?, ?,?)',
+      [name, category, price, unit,image]
     );
-    res.json({ id: result.insertId, name, category, price, unit });
+    res.json({ id: result.insertId, name, category, price, unit ,image});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
