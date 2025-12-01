@@ -4,17 +4,16 @@
 //   GET /api/salesRecords  -> [{ date, name, qty, price, payment }, ...]
 //   GET /api/salesBills    -> [{ id, date, dateSimple, items, payments, total }, ...]
 
-let ALL_BILLS = [];     // raw bills from backend (bills = high level)
-let ALL_ITEMS = [];     // flattened item-level records from backend (items = detailed)
-let currentFilteredBills = []; // cached filtered bills for export
+let ALL_BILLS = [];
+let ALL_ITEMS = [];
+let currentFilteredBills = [];
 
 // ---------- Fetch helpers ----------
 async function fetchSalesRecords() {
   try {
     const res = await fetch('http://localhost:3000/api/salesRecords');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json(); // expects [{date, name, qty, price, payment}, ...]
-    // Normalize: ensure types
+    const data = await res.json();
     return data.map(r => ({
       date: typeof r.date === 'string' ? r.date : (r.date ? new Date(r.date).toISOString().split('T')[0] : ''),
       name: r.name,
@@ -32,8 +31,7 @@ async function fetchSalesBills() {
   try {
     const res = await fetch('http://localhost:3000/api/salesBills');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json(); // expects [{id, date, dateSimple, items, payments, total}, ...]
-    // Normalize
+    const data = await res.json();
     return data.map(b => ({
       id: b.id,
       date: (typeof b.date === 'string') ? b.date : (b.date ? new Date(b.date).toISOString() : ''),
@@ -96,7 +94,6 @@ function renderBillsList(bills) {
     container.innerHTML = '<div class="text-muted">No bills yet</div>';
     return;
   }
-  // newest first
   bills.slice().reverse().forEach(b => {
     const cash = Number((b.payments && b.payments.cash) || 0);
     const online = Number((b.payments && b.payments.online) || 0);
@@ -118,7 +115,6 @@ function renderBillsList(bills) {
       </div>`;
     container.appendChild(el);
   });
-  // attach handlers to View buttons
   container.querySelectorAll('button[data-bill-id]').forEach(btn => {
     btn.addEventListener('click', (ev) => {
       const id = Number(ev.currentTarget.getAttribute('data-bill-id'));
@@ -140,10 +136,7 @@ function openBillModal(billId) {
   html += `</tbody></table></div><div class="mt-2"><strong>Total: ${formatPKR(bill.total)}</strong></div>`;
   html += `<div class="small text-muted mt-1">Payments: Cash PKR ${Number(bill.payments?.cash || 0).toLocaleString()} | Online PKR ${Number(bill.payments?.online || 0).toLocaleString()}</div>`;
   modalBody.innerHTML = html;
-  // show modal (bootstrap)
-  try {
-    new bootstrap.Modal(document.getElementById('billModal')).show();
-  } catch (e) { console.warn('Bootstrap modal show failed', e); }
+  try { new bootstrap.Modal(document.getElementById('billModal')).show(); } catch(e){ console.warn('Bootstrap modal show failed', e);}
 }
 
 // ---------- Utilities ----------
@@ -153,17 +146,11 @@ function escapeHtml(s) {
 }
 
 function detectPaymentLabel(payments, bill) {
-  // payments may be provided by backend or missing.
   if (payments && (Number(payments.cash) || Number(payments.online))) {
     const cash = Number(payments.cash || 0), online = Number(payments.online || 0);
     if (cash > 0 && online === 0) return 'Cash';
     if (online > 0 && cash === 0) return 'Online';
     if (cash > 0 && online > 0) return 'Mixed';
-  }
-  // fallback to payment type in items-level if available in ALL_ITEMS
-  if (bill && bill.items && bill.items.length) {
-    // We cannot determine split; use 'Mixed' if backend used 'mixed' string else use bill.payments
-    return bill.payments && (bill.payments.cash || bill.payments.online) ? 'Mixed' : 'Mixed';
   }
   return 'Unknown';
 }
@@ -174,16 +161,29 @@ let CHARTS = { daily: null, payment: null, top: null };
 function buildItemFlatListFromBills(bills) {
   const itemsFlat = [];
   bills.forEach(b => {
-    const billDateIso = b.date ? new Date(b.date).toISOString() : (b.dateSimple ? b.dateSimple : '');
+    const billDateIso = b.date ? new Date(b.date).toISOString() : (b.dateSimple || '');
+    const cashPayment = Number(b.payments?.cash || 0);
+    const onlinePayment = Number(b.payments?.online || 0);
+    const totalBill = Number(b.total || 0);
     b.items.forEach(it => {
+      const itemTotal = Number(it.qty || 0) * Number(it.price || 0);
+      let cashShare = 0, onlineShare = 0;
+      if (cashPayment > 0 && onlinePayment === 0) {
+        cashShare = itemTotal;
+      } else if (onlinePayment > 0 && cashPayment === 0) {
+        onlineShare = itemTotal;
+      } else if (cashPayment > 0 && onlinePayment > 0) {
+        const ratio = itemTotal / totalBill;
+        cashShare = ratio * cashPayment;
+        onlineShare = ratio * onlinePayment;
+      }
       itemsFlat.push({
         date: billDateIso,
         name: it.name,
         qty: Number(it.qty || 0),
         price: Number(it.price || 0),
-        payment: (b.payments && (b.payments.cash > 0 && b.payments.online === 0)) ? 'cash' :
-                 (b.payments && (b.payments.online > 0 && b.payments.cash === 0)) ? 'online' :
-                 'mixed'
+        cashAmount: cashShare,
+        onlineAmount: onlineShare
       });
     });
   });
@@ -191,12 +191,10 @@ function buildItemFlatListFromBills(bills) {
 }
 
 function initChartsFromItems(itemsFlat) {
-  // destroy previous charts if exist
   try { if (CHARTS.daily) CHARTS.daily.destroy(); } catch(e){}
   try { if (CHARTS.payment) CHARTS.payment.destroy(); } catch(e){}
   try { if (CHARTS.top) CHARTS.top.destroy(); } catch(e){}
 
-  // Daily: last 7 days (labels as 'YYYY-MM-DD')
   const today = new Date();
   const last7 = [];
   for (let i = 6; i >= 0; i--) {
@@ -204,8 +202,9 @@ function initChartsFromItems(itemsFlat) {
     d.setDate(today.getDate() - i);
     last7.push(d.toISOString().split('T')[0]);
   }
-  const dailyCash = last7.map(d => itemsFlat.filter(it => (it.date || '').startsWith(d) && it.payment === 'cash').reduce((a,b)=>a + b.qty * b.price, 0));
-  const dailyOnline = last7.map(d => itemsFlat.filter(it => (it.date || '').startsWith(d) && it.payment === 'online').reduce((a,b)=>a + b.qty * b.price, 0));
+
+  const dailyCash = last7.map(d => itemsFlat.filter(it => (it.date || '').startsWith(d)).reduce((a,b)=>a + b.cashAmount,0));
+  const dailyOnline = last7.map(d => itemsFlat.filter(it => (it.date || '').startsWith(d)).reduce((a,b)=>a + b.onlineAmount,0));
 
   const dailyCtx = document.getElementById('dailySalesChart')?.getContext('2d');
   if (dailyCtx) {
@@ -216,9 +215,8 @@ function initChartsFromItems(itemsFlat) {
     });
   }
 
-  // Payment Doughnut - total sums
-  const totalCash = itemsFlat.filter(i => i.payment === 'cash').reduce((a,b)=>a + b.qty * b.price, 0);
-  const totalOnline = itemsFlat.filter(i => i.payment === 'online').reduce((a,b)=>a + b.qty * b.price, 0);
+  const totalCash = itemsFlat.reduce((a,b)=>a + b.cashAmount,0);
+  const totalOnline = itemsFlat.reduce((a,b)=>a + b.onlineAmount,0);
   const paymentCtx = document.getElementById('paymentChart')?.getContext('2d');
   if (paymentCtx) {
     CHARTS.payment = new Chart(paymentCtx, {
@@ -228,7 +226,6 @@ function initChartsFromItems(itemsFlat) {
     });
   }
 
-  // Top Items
   const map = {};
   itemsFlat.forEach(it => map[it.name] = (map[it.name]||0) + it.qty);
   const top = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -249,28 +246,19 @@ function applyFilters() {
   const endDateVal = document.getElementById('endDate')?.value || '';
   const paymentFilter = document.getElementById('paymentFilter')?.value || 'all';
 
-  let filtered = ALL_BILLS.slice(); // bills
+  let filtered = ALL_BILLS.slice();
 
   if (startDateVal) {
     const s = new Date(startDateVal);
-    filtered = filtered.filter(b => {
-      const d = new Date(b.date || b.dateSimple);
-      // include same day
-      return d >= new Date(s.getFullYear(), s.getMonth(), s.getDate());
-    });
+    filtered = filtered.filter(b => new Date(b.date || b.dateSimple) >= new Date(s.getFullYear(), s.getMonth(), s.getDate()));
   }
   if (endDateVal) {
     const e = new Date(endDateVal);
-    filtered = filtered.filter(b => {
-      const d = new Date(b.date || b.dateSimple);
-      // include same day end
-      return d <= new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999);
-    });
+    filtered = filtered.filter(b => new Date(b.date || b.dateSimple) <= new Date(e.getFullYear(), e.getMonth(), e.getDate(),23,59,59,999));
   }
 
   if (paymentFilter !== 'all') {
     filtered = filtered.filter(b => {
-      // check payments field (backend provides payments with cash/online numbers)
       const cash = Number(b.payments?.cash || 0), online = Number(b.payments?.online || 0);
       if (paymentFilter === 'cash') return cash > 0 && online === 0;
       if (paymentFilter === 'online') return online > 0 && cash === 0;
@@ -282,16 +270,15 @@ function applyFilters() {
   populateSalesTable(filtered);
   renderBillsList(filtered);
 
-  // totals: use item-level to compute cash/online totals more reliably
   const itemsFlat = buildItemFlatListFromBills(filtered);
-  const totalCash = itemsFlat.filter(i => i.payment === 'cash').reduce((a,b)=>a + b.qty * b.price, 0);
-  const totalOnline = itemsFlat.filter(i => i.payment === 'online').reduce((a,b)=>a + b.qty * b.price, 0);
+  const totalCash = itemsFlat.reduce((a,b)=>a + b.cashAmount,0);
+  const totalOnline = itemsFlat.reduce((a,b)=>a + b.onlineAmount,0);
+
   document.getElementById('totalCash').textContent = formatPKR(totalCash);
   document.getElementById('totalOnline').textContent = formatPKR(totalOnline);
   document.getElementById('totalAmount').textContent = formatPKR(totalCash + totalOnline);
   document.getElementById('totalOrders').textContent = filtered.length;
 
-  // update charts
   initChartsFromItems(itemsFlat);
 }
 
@@ -321,26 +308,25 @@ function exportReport() {
 
 // ---------- Init ----------
 async function initReportsPage() {
-  // fetch both endpoints in parallel
   const [items, bills] = await Promise.all([fetchSalesRecords(), fetchSalesBills()]);
-  ALL_ITEMS = items; // flattened records (not used heavily)
+  ALL_ITEMS = items;
   ALL_BILLS = bills;
 
-  // populate initial UI
   currentFilteredBills = ALL_BILLS.slice();
   populateSalesTable(ALL_BILLS);
   renderBillsList(ALL_BILLS);
 
-  // initial totals + charts
   const itemsFlat = buildItemFlatListFromBills(ALL_BILLS);
-  document.getElementById('totalCash').textContent = formatPKR(itemsFlat.filter(i=>i.payment==='cash').reduce((a,b)=>a + b.qty * b.price, 0));
-  document.getElementById('totalOnline').textContent = formatPKR(itemsFlat.filter(i=>i.payment==='online').reduce((a,b)=>a + b.qty * b.price, 0));
-  document.getElementById('totalAmount').textContent = formatPKR(itemsFlat.reduce((a,b)=>a + b.qty * b.price, 0));
+  const totalCash = itemsFlat.reduce((a,b)=>a + b.cashAmount,0);
+  const totalOnline = itemsFlat.reduce((a,b)=>a + b.onlineAmount,0);
+
+  document.getElementById('totalCash').textContent = formatPKR(totalCash);
+  document.getElementById('totalOnline').textContent = formatPKR(totalOnline);
+  document.getElementById('totalAmount').textContent = formatPKR(totalCash + totalOnline);
   document.getElementById('totalOrders').textContent = ALL_BILLS.length;
 
   initChartsFromItems(itemsFlat);
 
-  // attach filter controls
   document.getElementById('startDate')?.addEventListener('change', applyFilters);
   document.getElementById('endDate')?.addEventListener('change', applyFilters);
   document.getElementById('paymentFilter')?.addEventListener('change', applyFilters);
