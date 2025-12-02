@@ -99,14 +99,108 @@ Manual processes in cafeterias cause:
 
 ---
 
-# 6. Non-Functional Requirements
+# 6. Non-Functional Requirements (Detailed — IEEE-style)
 
-- **Performance:** UI actions (add to cart, totals) respond within 1–2 seconds.
-- **Usability:** Intuitive Bootstrap-based interface; minimal steps for checkout.
-- **Security:** Server-side auth (to be implemented); sanitize inputs; hashed passwords.
-- **Reliability:** Persist orders in MySQL to prevent data loss.
-- **Maintainability:** Modular JS files and separated backend enable easier maintenance.
-- **Scalability:** MySQL + Node.js backend can support adding more terminals or users.
+This section expands each non-functional requirement with measurable constraints, verification methods, and acceptance criteria following IEEE style guidelines.
+
+## 6.1 Performance
+- Definition: The system shall provide acceptable response times under 1-second for UI actions and backend endpoints.
+- Constraints: The server runs on commodity hardware with a single-node MySQL database.
+- Measurable Targets:
+   - Average API latency (GET/POST) under 200ms for simple reads/writes under normal load.
+   - UI actions such as Add-to-Cart and Cart total update shall complete within 300ms (perceived instant) on a modern browser.
+   - Checkout (POST /api/sales + inventory update) shall complete within 1.5 seconds under normal load.
+- Verification Method: Automated load testing (e.g., k6, Artillery) and manual timing with network throttling.
+- Acceptance Criteria: 95% of API calls meet the latency target under a simulated 100-concurrent-requests throughput.
+
+## 6.2 Reliability
+- Definition: The system should operate correctly over time, with no data loss or inconsistent state.
+- Measurable Targets:
+   - Transactions (sales) committed to the database shall persist with ACID guarantees.
+   - Inventory updates shall be atomic with the sale operation.
+- Verification Method: Integration tests that perform multi-step transactions, power-off tests, and DB transaction logs.
+- Acceptance Criteria: No lost sales or mismatched inventory numbers during test transactions; rollback successfully occurs upon failure.
+
+## 6.3 Availability & Uptime
+- Definition: The system shall be available for cashier operations during business hours.
+- Measurable Targets:
+   - Minimum 99% uptime during business hours (7:00–19:00), excluding scheduled maintenance.
+- Verification Method: Periodic synthetic checks and uptime monitoring (Prometheus / UptimeRobot).
+- Acceptance Criteria: Logs indicate no more than ~7 minutes of downtime per week during monitored hours.
+
+## 6.4 Scalability
+- Definition: The system can scale to support additional terminals and increased load.
+- Measurable Targets:
+   - Support at least 50 concurrent terminals (clients) performing normal POS activity with acceptable performance.
+- Verification Method: Load testing (k6 / Artillery) and benchmarking infrastructure.
+- Acceptance Criteria: No more than a 20% performance degradation when scaling up concurrent clients to the target.
+
+## 6.5 Security
+- Definition: The system must protect data both in transit and at rest and prevent common vulnerabilities.
+- Requirements:
+   - Transport-level encryption: HTTPS/TLS for all API calls.
+   - Authentication: Server-side user authentication and roles (admin / staff) with session or JWTs.
+   - Authorization: Role-based access for sensitive endpoints (menu changes, inventory updates, report access).
+   - Input validation & sanitization for all server endpoints.
+   - Hash password storage using bcrypt or equivalent.
+   - SQL parameterized queries / prepared statements to prevent SQL injection (mysql2 already uses placeholders).
+- Verification Method: Security review, automated vulnerability scans (e.g., OWASP ZAP), and penetration testing.
+- Acceptance Criteria: No critical or high OWASP vulnerabilities remain unaddressed; user passwords cannot be retrieved in plaintext.
+
+## 6.6 Data Integrity & Consistency
+- Definition: The data in MySQL must remain consistent — sales and inventory changes occur atomically.
+- Measurable Targets:
+   - No negative inventory quantities allowed; inventory decrements are validated at server-side.
+- Verification Method: Unit and integration tests that simulate concurrent sale operations.
+- Acceptance Criteria: For concurrent sales, total inventory never goes negative; conflict resolution or serializable transaction isolation ensures consistent totals.
+
+## 6.7 Maintainability & Testability
+- Definition: The system must be easy to maintain and extend; developers can test functions easily.
+- Requirements:
+   - Modular file structure, separation of concerns (controllers, models, routes), and unit tests for logic.
+   - Continuous Integration pipelines (CI) with automated tests.
+- Verification Method: Code reviews, unit test coverage metrics (target 60%+), and CI run pass rates.
+- Acceptance Criteria: PRs must pass test suite and code linting before merge; documented coding style and README updates.
+
+## 6.8 Usability & Accessibility
+- Definition: The UI should be easy to learn and accessible for non-technical staff.
+- Measurable Targets:
+   - A new staff member should be able to perform basic POS tasks (take order, checkout, print receipt) within 5 minutes of onboarding.
+   - Accessibility: Contrast ratios meet WCAG AA for primary UI elements.
+- Verification Method: Usability testing sessions, observational studies, and automated accessibility checks.
+- Acceptance Criteria: Task completion rates > 90% for core tasks; no WCAG AA violations found for critical components.
+
+## 6.9 Portability & Platform Support
+- Definition: The system should be deployable on typical Windows/Linux setups and accessible from modern browsers.
+- Requirements:
+   - Backend runs on Node.js 18+ and MySQL 8+.
+   - Frontend usable on Chrome, Edge, Firefox (latest two versions) and responsive for tablets.
+- Verification Method: Cross-platform smoke tests and browser compatibility checks.
+- Acceptance Criteria: No critical differences in functionality across supported platforms; responsive UI scales properly on common tablet sizes.
+
+## 6.10 Recoverability & Backup
+- Definition: Protect against data loss and provide a path to restore services.
+- Requirements:
+   - Daily automated database backups.
+   - Backup retention policy: at least 14 days.
+   - Recovery test at least monthly.
+- Verification Method: Scheduled backups and restore tests in a staging environment.
+- Acceptance Criteria: A successful restore of database backups within a pre-defined RTO (Recovery Time Objective) of 4 hours.
+
+## 6.11 Efficiency & Resource Usage
+- Definition: The system should use resources efficiently.
+- Measurable Targets:
+   - CPU utilization under 70% and memory under 80% for normal loads.
+- Verification Method: Monitoring during load tests and production.
+- Acceptance Criteria: No single process consumes more than the threshold under normal usage.
+
+## 6.12 Legal & Privacy
+- Definition: Comply with local data protection regulations for customer data (if any payment data is stored).
+- Requirements:
+   - No unnecessary storage of payment card details; use tokens from payment providers if integrating online payments.
+   - Protect personally identifiable information (PII) appropriately.
+- Verification Method: Policy review and security audits.
+- Acceptance Criteria: No storage of raw payment card numbers; PII is encrypted/hashed as required by applicable regulation.
 
 ---
 
@@ -114,7 +208,7 @@ Manual processes in cafeterias cause:
 
 ## 7.1 Overview — Three-Tier
 - Frontend: HTML/CSS/JS/Bootstrap] <--> [Backend: Node.js / Express API] <--> [Database: MySQL
-
+- (Detailed UML-diagrams/Flow-diagrams can be seen in the Github repository.)
 ## 7.2 Components
 - **Frontend**: Static pages + JS (index, billing, addMenu, inventory, report). Handles UI & calls APIs.
 - **Backend**: REST API (Node.js/Express) — handles CRUD, orders, reports, auth.

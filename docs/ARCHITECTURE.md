@@ -18,16 +18,13 @@ graph TB
     
     subgraph Logic["⚙️ JavaScript Logic"]
         BJ["billing.js<br/>- addToCart()<br/>- renderCart()<br/>- checkout()<br/>- decrementInventory()"]
-        RJ["report.js<br/>- getStoredBills()<br/>- buildAggregates()<br/>- renderBillsList()<br/>- exportCSV()"]
-        IJ["inventory.js<br/>- loadInventory()<br/>- addItem()<br/>- deleteItem()<br/>- saveToLocalStorage()"]
-        AMJ["addMenu.js<br/>- addCustomItem()<br/>- deleteMenuItem()"]
+        RJ["report.js<br/>- fetchServerReports()<br/>- buildAggregates()<br/>- renderBillsList()<br/>- exportCSV()"]
+        IJ["inventory.js<br/>- loadInventory()<br/>- addItem()<br/>- deleteItem()<br/>- syncWithServer()"]
+        AMJ["addMenu.js<br/>- addCustomItem()<br/>- deleteMenuItem() (calls server API)"]
     end
     
-    subgraph Storage["💾 localStorage (Browser Persistence)"]
-        SR["salesRecords<br/>(per-item sales)"]
-        SB["salesBills<br/>(invoice-level)"]
-        INV["inventory<br/>(current stock)"]
-        CMI["customMenuItems<br/>(menu items)"]
+    subgraph Storage["💾 Server Persistence (MySQL)"]
+        DB["MySQL Database (menu_items, inventory, sales)"]
     end
     
     subgraph CSS["🎨 Styles"]
@@ -46,13 +43,10 @@ graph TB
     IP --> IJ
     AMP --> AMJ
     
-    BJ --> SR
-    BJ --> SB
-    BJ --> INV
-    RJ --> SR
-    RJ --> SB
-    IJ --> INV
-    AMJ --> CMI
+    BJ --> DB
+    RJ --> DB
+    IJ --> DB
+    AMJ --> DB
     
     BP -.-> UC
     BP -.-> BC
@@ -118,11 +112,11 @@ graph TB
 
 ## Updates & Current Mismatches (summary)
 
-- The repository recently consolidated route registration into a single router file: `backend/routes/api.js`. That file mounts the API under `/api` and exposes the endpoints listed in the Routes section below.
-- The `menuController` contains write handlers (`create`, `update`, `remove`) but the router currently only exposes `GET /api/menu`. If the UI needs to create/delete menu items (the frontend posts to `/api/menu`), add the POST/PUT/DELETE routes to `backend/routes/api.js` or re-add a `routes/menu.js` that is mounted by `server.js`.
-- `report.js` in the frontend expects `GET /api/salesBills` and `GET /api/salesRecords`; those endpoints are implemented in `salesController` and are mounted in `routes/api.js` (so reporting endpoints exist). Earlier documentation that claimed these endpoints were missing is now outdated.
-- Database connection defaults in `backend/models/db.js` include `port: 3307` and a default `DB_PASS` value in code; rely on a proper `backend/.env` (add `backend/.env.example`) to avoid surprises.
-- Many frontend modules still use `localStorage` for UI convenience (for example `heldOrders`) but the canonical persistence for menu, inventory and sales is the backend database. Decide on a single source of truth (recommended: backend DB) and gradually remove full localStorage dependence for persistent data.
+The repository has consolidated route registration into a single router file: `backend/routes/api.js` that mounts the API under `/api`. The unified router exposes CRUD endpoints for `menu`, `inventory`, and `sales` (including `GET /api/salesRecords` and `GET /api/salesBills` for reporting). The backend controllers (`menuController`, `inventoryController`, `salesController`) implement create, update and delete handlers and the DB-backed persistence for those entities.
+
+Database connectivity is configured in `backend/models/db.js` using environment variables declared in `backend/.env`. Ensure `backend/.env` is kept secure and use `backend/.env.example` for a project template (recommended).
+
+Many frontend modules still use `localStorage` for UI convenience (for example `heldOrders`), but the canonical persistence for menu, inventory, and sales data is the backend MySQL database. For multi-terminal correctness and data integrity, inventory and sales updates should be handled through the backend API rather than relying on client-side localStorage.
 
 ---
 
@@ -136,17 +130,16 @@ sequenceDiagram
     actor User
     participant Billing as Billing Page
     participant BillingJS as billing.js
-    participant LocalStorage as localStorage
+    participant Backend as Backend API
     participant Inventory as inventory.js
     
     User->>Billing: Add items to cart
     Billing->>BillingJS: addToCart()
     BillingJS->>Billing: renderCart()
     Billing->>BillingJS: User clicks Checkout
-    BillingJS->>LocalStorage: Save to salesRecords[]
-    BillingJS->>LocalStorage: Save to salesBills[]
-    BillingJS->>Inventory: Decrement quantities
-    Inventory->>LocalStorage: Update inventory
+    BillingJS->>Backend: POST /api/sales (create sale record)
+    BillingJS->>Backend: PUT /api/inventory (decrement inventory per item)
+    BillingJS->>Inventory: Update local UI to reflect new stock
     BillingJS->>Billing: Clear cart, reset UI
     User->>Billing: Cart cleared, ready for next sale
 ```
@@ -157,12 +150,12 @@ sequenceDiagram
     actor User
     participant Report as Report Page
     participant ReportJS as report.js
-    participant LocalStorage as localStorage
+    participant Backend as Backend API
     
     User->>Report: Open Reports
     Report->>ReportJS: Load page
-    ReportJS->>LocalStorage: Read salesRecords[]
-    ReportJS->>LocalStorage: Read salesBills[]
+    ReportJS->>Backend: GET /api/salesRecords
+    ReportJS->>Backend: GET /api/salesBills
     ReportJS->>ReportJS: buildAggregates()
     ReportJS->>Report: Render charts (daily, top items)
     ReportJS->>Report: Render bills list
@@ -179,32 +172,32 @@ sequenceDiagram
     actor Admin
     participant Inventory as Inventory Page
     participant InventoryJS as inventory.js
-    participant LocalStorage as localStorage
+    participant Backend as Backend API
     
     Admin->>Inventory: Open Inventory
-    InventoryJS->>LocalStorage: Load inventory
+    InventoryJS->>Backend: GET /api/inventory
     InventoryJS->>Inventory: Render items table
     Admin->>Inventory: Add/Update/Delete item
     Inventory->>InventoryJS: Submit form
-    InventoryJS->>LocalStorage: Persist changes
+    InventoryJS->>Backend: POST/PUT /api/inventory (persist changes)
     InventoryJS->>Inventory: Refresh table
     Admin->>Inventory: Confirm changes applied
 ```
 
 ---
 
-## Data Model / localStorage Schema
+## Data Model / MySQL Schema (and local client cache)
 
 ```mermaid
 graph LR
-    SR["<b>salesRecords</b><br/>Array of sales<br/>- id<br/>- date<br/>- itemName<br/>- qty<br/>- unitPrice<br/>- paymentMethod<br/>- total"]
-    SB["<b>salesBills</b><br/>Array of invoices<br/>- id<br/>- date<br/>- dateSimple<br/>- items[]<br/>- payments{}<br/>- total"]
-    INV["<b>inventory</b><br/>Array of stock<br/>- id<br/>- name<br/>- qty<br/>- price<br/>- category"]
-    CMI["<b>customMenuItems</b><br/>Array of menu<br/>- id<br/>- name<br/>- price<br/>- category"]
+    SALES_TBL["<b>sales (table)</b><br/>- id<br/>- items_json<br/>- total_amount<br/>- payment_type<br/>- cash_amount<br/>- online_amount<br/>- created_at"]
+    MENU_TBL["<b>menu_items (table)</b><br/>- id<br/>- name<br/>- category<br/>- price<br/>- unit<br/>- image<br/>- created_at"]
+    INV_TBL["<b>inventory (table)</b><br/>- id<br/>- item_name<br/>- quantity<br/>- unit<br/>- note<br/>- created_at<br/>- updated_at"]
+    CMI_TBL["<b>custom_menu_items (table)</b><br/>- id<br/>- name<br/>- price<br/>- category<br/>- created_at"]
     
-    SB -->|contains| SR
-    SR -->|references| INV
-    CMI -->|linked to| INV
+    SALES_TBL -->|contains| MENU_TBL
+    SALES_TBL -->|references| INV_TBL
+    CMI_TBL -->|linked to| INV_TBL
 ```
 
 ---
@@ -212,32 +205,32 @@ graph LR
 ## Component Architecture
 
 ### Frontend Pages
-| Page | Purpose | Key Functions | localStorage Keys |
+| Page | Purpose | Key Functions | Primary Persistence |
 |------|---------|----------------|-------------------|
 | **index.html** | Home/Dashboard with navigation | Navigation links to all modules | None (home page only) |
-| **billing.html** | Point-of-Sale cart & checkout | `addToCart()`, `checkout()`, `decreaseQty()`, `holdOrder()` | `salesRecords`, `salesBills`, `inventory` |
-| **report.html** | Analytics, bill details, CSV export | `buildAggregates()`, `renderBillsList()`, `openBillModal()`, `exportCSV()` | `salesRecords`, `salesBills` |
-| **inventory.html** | Stock management CRUD | `loadInventory()`, `addItem()`, `deleteItem()`, `updateItem()` | `inventory` |
-| **addMenu.html** | Custom menu item management | `addCustomItem()`, `deleteMenuItem()` | `customMenuItems` |
+| **billing.html** | Point-of-Sale cart & checkout | `addToCart()`, `checkout()`, `decreaseQty()`, `holdOrder()` | `MySQL (sales & inventory)`, localStorage (held orders only) |
+| **report.html** | Analytics, bill details, CSV export | `buildAggregates()`, `renderBillsList()`, `openBillModal()`, `exportCSV()` | `MySQL (sales)` |
+| **inventory.html** | Stock management CRUD | `loadInventory()`, `addItem()`, `deleteItem()`, `updateItem()` | `MySQL (inventory)` |
+| **addMenu.html** | Custom menu item management | `addCustomItem()`, `deleteMenuItem()` | `MySQL (menu_items)` |
 
 ### JavaScript Modules
 
 #### `billing.js`
-- **Purpose:** Manages cart, checkout, and sale persistence
+- **Purpose:** Manages cart, checkout, and sale persistence to the backend (MySQL)
 - **Key Functions:**
-  - `addToCart(item)` — Add item to cart
-  - `removeFromCart(index)` — Remove item from cart
-  - `checkout()` — Process sale, persist to localStorage, decrement inventory
-  - `holdOrder()` — Save partial order
-  - `decrementInventory()` — Update stock after sale
+    - `addToCart(item)` — Add item to cart
+    - `removeFromCart(index)` — Remove item from cart
+    - `checkout()` — Process sale, persist to backend `/api/sales`, and request inventory updates
+    - `holdOrder()` — Save partial order in localStorage for resilience (not a permanent record)
+    - `decrementInventory()` — Request server to decrement inventory on successful sale
 
 #### `report.js`
-- **Purpose:** Load sales data, generate analytics, render bills UI
+- **Purpose:** Load sales data from backend, generate analytics, render bills UI
 - **Key Functions:**
-  - `getStoredSales()` — Read `salesRecords` from localStorage
-  - `getStoredBills()` — Read `salesBills` from localStorage
-  - `buildAggregatesFromItems()` — Compute daily totals, top items
-  - `calculateTotals()` — Compute stats (total revenue, orders, avg sale)
+    - `fetchServerReports()` — GET `/api/salesRecords` from backend
+    - `fetchServerBills()` — GET `/api/salesBills` from backend
+    - `buildAggregatesFromItems()` — Compute daily totals, top items from server-supplied data
+    - `calculateTotals()` — Compute stats (total revenue, orders, average sale) using DB-driven data
   - `renderBillsList(bills)` — Render bill cards
   - `openBillModal(billId)` — Show bill details modal
   - `filterBills()` — Filter by date/payment method
@@ -246,11 +239,11 @@ graph LR
 #### `inventory.js`
 - **Purpose:** Manage inventory CRUD and persistence
 - **Key Functions:**
-  - `loadInventory()` — Load from localStorage or initialize defaults
+    - `loadInventory()` — Load from backend via GET `/api/inventory` and render to UI
   - `addItem(itemObj)` — Add new inventory item
   - `updateItem(id, updates)` — Modify existing item
   - `deleteItem(id)` — Remove inventory item
-  - `saveInventoryToLocalStorage()` — Persist to localStorage
+    - `saveInventoryToDB()` — Persist to backend via POST/PUT `/api/inventory`
 
 #### `addMenu.js`
 - **Purpose:** Manage custom menu items
@@ -342,7 +335,7 @@ Note: Although `menuController` implements `create`, `update`, and `remove` hand
 - Filters: By date range, payment method
 
 ### ✅ Menu Management
-- Add custom menu items → saved to `customMenuItems` in `localStorage`
+- Add custom menu items → saved to `menu_items` table via `/api/menu` (DB persisted)
 - Custom items appear in Billing page cart
 - Custom items can be deleted/updated
 
@@ -355,7 +348,7 @@ Note: Although `menuController` implements `create`, `update`, and `remove` hand
 | **Frontend UI** | HTML5, Bootstrap 5, CSS3 |
 | **Scripting** | Vanilla JavaScript (ES6) |
 | **Charts** | Chart.js |
-| **State Management** | browser `localStorage` (client-side persistence) |
+| **State Management** | Primary persistence: `MySQL` (backend); `localStorage` optionally used for held orders / offline caching |
 | **Backend** | (Optional: planned for multi-terminal durability) |
 
 ---
@@ -424,7 +417,7 @@ Cafeteria-Management-System/
 | Component | File(s) | Status | Details |
 |-----------|---------|--------|---------|
 | **Frontend Pages** | 5 HTML files | ✅ Complete | index, billing, report, inventory, addMenu |
-| **Frontend Logic** | 4 JS files | ✅ Complete | All modules with localStorage persistence |
+| **Frontend Logic** | 4 JS files | ✅ Complete | Frontend syncs with Backend API (MySQL). LocalStorage used for short-lived caches only (e.g., held orders) |
 | **Frontend Styles** | 8 CSS files | ✅ Complete | Responsive Bootstrap-based styling |
 | **Backend Server** | server.js | ✅ Created | Express setup with CORS & middleware |
 | **API Routes** | 3 route files | ✅ Created | menu, inventory, sales endpoints |
