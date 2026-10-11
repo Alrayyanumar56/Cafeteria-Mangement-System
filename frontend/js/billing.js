@@ -1,200 +1,91 @@
-const cart = [];
+const S = { menu: [], cat: 'all', cart: [], mode: 'cash' };
 
-// Load menu items from backend
-document.addEventListener('DOMContentLoaded', function() {
-    loadMenuItems();
-    setupCategoryFilter();
-});
-// Set up category filter click events
-function setupCategoryFilter() {
-    const categoryList = document.getElementById('categoryList');
-    if (!categoryList) return;
-    categoryList.addEventListener('click', function(e) {
-        if (e.target && e.target.tagName === 'LI') {
-            // Remove active from all
-            Array.from(categoryList.children).forEach(li => li.classList.remove('active'));
-            e.target.classList.add('active');
-            filterProductsByCategory(e.target.getAttribute('data-category'));
-        }
-    });
+async function load() {
+  S.menu = (await api('GET', '/menu')).filter(i => i.available);
+  render();
 }
+function render() { renderCats(); renderTiles(); renderCart(); }
 
-function filterProductsByCategory(category) {
-    const items = document.querySelectorAll('.product-item');
-    items.forEach(item => {
-        if (category === 'all' || item.getAttribute('data-category') === category) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
-        }
-    });
+function renderCats() {
+  const names = [...new Set(S.menu.map(i => i.category))];
+  if (S.cat !== 'all' && !names.includes(S.cat)) S.cat = 'all';
+  $('#cats').innerHTML = ['all', ...names].map(c =>
+    `<button class="cat-btn ${c === S.cat ? 'active' : ''}" data-cat="${esc(c)}">${c === 'all' ? 'All items' : esc(c)}</button>`).join('');
 }
-
-async function loadMenuItems() {
-    try {
-        const res = await fetch('http://localhost:3000/api/menu');
-        const menuItems = await res.json();
-        populateProductGrid(menuItems);
-    } catch (err) {
-        console.error('Failed to load menu:', err);
-        alert('Error loading menu items from server.');
-    }
+function renderTiles() {
+  const list = S.menu.filter(i => S.cat === 'all' || i.category === S.cat);
+  $('#noitems').hidden = list.length > 0;
+  $('#tiles').innerHTML = list.map(i => `<div class="tile" data-id="${i.id}">
+    <img src="${esc(i.image || '../img/default.svg')}" onerror="this.src='../img/default.svg'" alt="">
+    <div class="nm">${esc(i.name)}</div><div class="pr">${money(i.price)}</div>${i.kitchen ? '<div class="kt">👨‍🍳 kitchen</div>' : ''}</div>`).join('');
 }
+const total = () => S.cart.reduce((s, l) => s + l.price * l.qty, 0);
 
-function populateProductGrid(menuItems) {
-    const productGrid = document.getElementById('productGrid');
-    productGrid.innerHTML = '';
-
-    menuItems.forEach(item => {
-        const priceNum = parseFloat(item.price); // convert price to number
-        let category = item.category;
-        if (category === 'cold-drinks' || category === 'hot-drinks') category = 'drinks';
-        if (category === 'fast-food' || category === 'essentials') return; // skip removed categories
-
-        const productDiv = document.createElement('div');
-        productDiv.className = 'col-6 col-sm-4 col-lg-3 product-item';
-        productDiv.setAttribute('data-category', category);
-
-        productDiv.innerHTML = `
-            <div class="card product-card" onclick="addToCart(${item.id},'${item.name}',${priceNum})">
-                <img src="${item.image || '/default.png'}" class="card-img-top" alt="product">
-                <div class="card-body p-2 text-center">
-                    <p class="price mb-1">Rs ${priceNum.toFixed(0)}</p>
-                    <p class="name mb-0">${item.name}</p>
-                </div>
-            </div>
-        `;
-        productGrid.appendChild(productDiv);
-    });
-}
-
-// Add item to cart
-function addToCart(id, name, price) {
-    const existing = cart.find(i => i.id === id);
-    if (existing) existing.qty++;
-    else cart.push({ id, name, price, qty: 1 });
-    renderCart();
-}
-
-// Render cart table
 function renderCart() {
-    const tbody = document.getElementById('cartTable');
-    tbody.innerHTML = '';
-    let total = 0;
-
-    cart.forEach((item, index) => {
-        const subtotal = item.price * item.qty;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${item.name}</td>
-            <td class="text-end">${item.price.toFixed(2)}</td>
-            <td class="text-end">
-                ${item.qty} 
-                <button class="btn btn-sm btn-danger ms-2" onclick="decreaseQty(${index})">×</button>
-            </td>
-            <td class="text-end">${subtotal.toFixed(2)}</td>
-        `;
-        tbody.appendChild(tr);
-        total += subtotal;
-    });
-
-    document.getElementById('totalAmount').innerText = total.toFixed(2);
-    updateBalance();
+  $('#cart').innerHTML = S.cart.length ? S.cart.map(l => `<div class="cart-row" data-id="${l.id}">
+    <span class="nm">${esc(l.name)}</span><button class="qbtn" data-d="-1">−</button><b>${l.qty}</b><button class="qbtn" data-d="1">+</button>
+    <span style="width:80px;text-align:right">${money(l.price * l.qty)}</span></div>`).join('') : '<div class="text-muted p-3">Tap a picture to add it.</div>';
+  $('#total').textContent = money(total());
+  renderPay();
+}
+function renderPay() {
+  const t = total();
+  if (S.mode === 'cash') $('#payfields').innerHTML = `<label>Customer gives</label><input id="cash" type="number" min="0" class="form-control form-control-lg" value="${t || ''}">
+    <div class="quick">${[t, 500, 1000, 5000].filter(Boolean).map(v => `<button data-q="${v}">${v === t ? 'Exact' : v}</button>`).join('')}</div><div id="chg" class="fs-4 fw-bold"></div>`;
+  else if (S.mode === 'online') $('#payfields').innerHTML = `<div class="fs-5">Paid online: <b>${money(t)}</b></div>`;
+  else $('#payfields').innerHTML = `<label>Paid online</label><input id="onl" type="number" min="0" class="form-control form-control-lg" placeholder="0">
+    <label class="mt-1">Cash given</label><input id="cash" type="number" min="0" class="form-control form-control-lg"><div id="chg" class="fs-4 fw-bold"></div>`;
+  check();
+}
+function amounts() {
+  const t = total(), g = id => Number($(id)?.value) || 0;
+  if (S.mode === 'online') return { cash: 0, online: t };
+  return { cash: g('#cash'), online: S.mode === 'split' ? g('#onl') : 0 };
+}
+function check() {
+  const t = total(), a = amounts();
+  const cashDue = t - a.online, change = a.cash - cashDue;
+  let err = '';
+  if (a.online > t) err = 'Online amount is more than the bill';
+  else if (S.mode !== 'online' && a.cash + a.online < t) err = t ? `Short by ${money(t - a.cash - a.online)}` : '';
+  $('#msg').textContent = err;
+  if ($('#chg')) $('#chg').textContent = !err && change > 0 ? `Give back: ${money(change)}` : (S.mode === 'split' && !err && t ? `Cash to take: ${money(cashDue)}` : '');
+  $('#pay').disabled = !S.cart.length || !!err;
 }
 
-// Decrease quantity by 1
-function decreaseQty(index) {
-    if (cart[index].qty > 1) cart[index].qty--;
-    else cart.splice(index, 1);
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-cat],.tile,[data-d],[data-q],.paymode button');
+  if (!t) return;
+  if (t.dataset.cat) { S.cat = t.dataset.cat; renderCats(); renderTiles(); }
+  else if (t.classList.contains('tile')) {
+    const m = S.menu.find(i => i.id == t.dataset.id), l = S.cart.find(x => x.id === m.id);
+    if (l) l.qty = Math.min(99, l.qty + 1); else S.cart.push({ id: m.id, name: m.name, price: m.price, qty: 1 });
     renderCart();
-}
-
-// Checkout and save sales to backend
-async function checkout() {
-    const total = parseFloat(document.getElementById('totalAmount').innerText) || 0;
-    const cash = parseFloat(document.getElementById('cashInput').value) || 0;
-    const online = parseFloat(document.getElementById('onlineInput').value) || 0;
-    const paid = cash + online;
-
-    if (cart.length === 0) { alert("Cart is empty!"); return; }
-    if (paid < total) { alert("Insufficient payment!"); return; }
-
-const saleData = {
-  items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
-  total_amount: total,
-  cash_amount: cash,
-  online_amount: online
-}
-    try {
-        const res = await fetch('http://localhost:3000/api/sales', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(saleData)
-        });
-
-        if (!res.ok) throw new Error('Failed to save sale.');
-
-        alert(`Checkout successful!\nTotal: PKR ${total.toFixed(2)}\nPaid: PKR ${paid.toFixed(2)}\nBalance: PKR ${(paid-total).toFixed(2)}`);
-        cart.length = 0;
-        renderCart();
-        document.getElementById('cashInput').value = '';
-        document.getElementById('onlineInput').value = '';
-    } catch (err) {
-        console.error(err);
-        alert('Error saving sale to server.');
-    }
-}
-
-// Update balance
-function updateBalance() {
-    const cash = parseFloat(document.getElementById('cashInput').value) || 0;
-    const online = parseFloat(document.getElementById('onlineInput').value) || 0;
-    const total = parseFloat(document.getElementById('totalAmount').innerText) || 0;
-    const paid = cash + online;
-    document.getElementById('balance').innerText = (paid - total).toFixed(2);
-}
-
-document.getElementById('cashInput')?.addEventListener('input', updateBalance);
-document.getElementById('onlineInput')?.addEventListener('input', updateBalance);
-
-// Add a custom item from the modal form into the cart
-function addCustomItem() {
-    const nameEl = document.getElementById('customName');
-    const priceEl = document.getElementById('customPrice');
-    const qtyEl = document.getElementById('customQty');
-    if (!nameEl || !priceEl || !qtyEl) return;
-    const name = nameEl.value.trim();
-    const price = parseFloat(priceEl.value) || 0;
-    const qty = parseInt(qtyEl.value) || 1;
-    if (!name || price <= 0 || qty <= 0) { alert('Please provide valid name, price and quantity for the custom item.'); return; }
-
-    // Custom items receive a unique id to avoid conflicts with menu items
-    const id = `custom-${Date.now()}`;
-    cart.push({ id, name, price, qty });
+  } else if (t.dataset.d) {
+    const l = S.cart.find(x => x.id == t.closest('.cart-row').dataset.id);
+    l.qty = Math.min(99, l.qty + Number(t.dataset.d));
+    if (l.qty <= 0) S.cart.splice(S.cart.indexOf(l), 1);
     renderCart();
-    // clear modal inputs and close modal
-    nameEl.value = '';
-    priceEl.value = '';
-    qtyEl.value = '1';
-    const modalEl = document.getElementById('customItemModal');
-    try { const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl); modal.hide(); } catch (e) { /* ignore */ }
-}
+  } else if (t.dataset.q) { $('#cash').value = t.dataset.q; check(); }
+  else if (t.dataset.m) {
+    S.mode = t.dataset.m;
+    document.querySelectorAll('.paymode button').forEach(b => b.classList.toggle('on', b === t));
+    renderPay();
+  }
+});
+document.addEventListener('input', e => { if (e.target.matches('#cash,#onl')) check(); });
+$('#clear').onclick = () => { S.cart = []; renderCart(); };
 
-// Hold the current cart order by saving it to localStorage under 'heldOrders'
-function holdOrder() {
-    if (!cart.length) { alert('Cart is empty. Nothing to hold.'); return; }
-    const held = JSON.parse(localStorage.getItem('heldOrders') || '[]');
-    const total = parseFloat(document.getElementById('totalAmount').innerText) || 0;
-    const payload = {
-        id: `held-${Date.now()}`,
-        cart: [...cart],
-        total,
-        createdAt: new Date().toISOString()
-    };
-    held.push(payload);
-    localStorage.setItem('heldOrders', JSON.stringify(held));
-    // Clear cart and update UI
-    cart.length = 0;
-    renderCart();
-    alert('Order held successfully. You can implement a UI later to restore held orders.');
-}
+$('#pay').onclick = async () => {
+  $('#pay').disabled = true;
+  try {
+    const a = amounts();
+    const r = await api('POST', '/sales', { items: S.cart.map(l => ({ id: l.id, qty: l.qty })), cash_received: a.cash, online_amount: a.online, customer_name: $('#cname').value });
+    $('#tok').textContent = '#' + r.token;
+    $('#doneinfo').innerHTML = (r.change > 0 ? `Give back <b>${money(r.change)}</b><br>` : '') + (r.to_kitchen ? '👨‍🍳 Sent to kitchen' : 'Take it from the counter');
+    $('#done').classList.add('show');
+  } catch (err) { $('#msg').textContent = err.message; $('#pay').disabled = false; }
+};
+$('#next').onclick = () => { $('#done').classList.remove('show'); S.cart = []; $('#cname').value = ''; S.mode = 'cash';
+  document.querySelectorAll('.paymode button').forEach(b => b.classList.toggle('on', b.dataset.m === 'cash')); load(); };
+load();

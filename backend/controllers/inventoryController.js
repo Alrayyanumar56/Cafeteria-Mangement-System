@@ -1,48 +1,12 @@
-// backend/controllers/inventoryController.js
-const db = require('../models/db');
-
-exports.getAll = async (req, res) => {
-  try {
-    const [rows] = await db.query('SELECT * FROM inventory ORDER BY id DESC');
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+'use strict';
+const db = require('../db');
+const { h, bad } = require('../utils');
+const body = b => {
+  const name = String(b.item_name || '').trim();
+  if (!name) throw bad('Item name is required');
+  return [name, Number(b.quantity) || 0, b.unit || '', b.note || ''];
 };
-
-exports.create = async (req, res) => {
-  try {
-    const { item_name, quantity, unit, note } = req.body;
-    const [r] = await db.query(
-      'INSERT INTO inventory (item_name, quantity, unit, note) VALUES (?, ?, ?, ?)',
-      [item_name, quantity, unit, note]
-    );
-    res.json({ id: r.insertId, item_name, quantity, unit, note });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.update = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const { item_name, quantity, unit, note } = req.body;
-    await db.query(
-      'UPDATE inventory SET item_name=?, quantity=?, unit=?, note=? WHERE id=?',
-      [item_name, quantity, unit, note, id]
-    );
-    res.json({ message: 'Updated' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-exports.remove = async (req, res) => {
-  try {
-    const id = req.params.id;
-    await db.query('DELETE FROM inventory WHERE id=?', [id]);
-    res.json({ message: 'Deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+exports.getAll = h(() => db.prepare('SELECT * FROM inventory ORDER BY id DESC').all());
+exports.create = h(req => ({ id: db.prepare('INSERT INTO inventory (item_name, quantity, unit, note) VALUES (?,?,?,?)').run(...body(req.body)).lastInsertRowid }));
+exports.update = h(req => { db.prepare("UPDATE inventory SET item_name=?, quantity=?, unit=?, note=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(...body(req.body), req.params.id); return { message: 'Updated' }; });
+exports.remove = h(req => { db.prepare('DELETE FROM inventory WHERE id=?').run(req.params.id); return { message: 'Deleted' }; });

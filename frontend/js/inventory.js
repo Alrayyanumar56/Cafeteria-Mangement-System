@@ -4,7 +4,7 @@ async function loadInventory() {
     table.innerHTML = "";
 
     try {
-        const res = await fetch('http://localhost:3000/api/inventory');
+        const res = await fetch('/api/inventory');
         let inventory = await res.json();
 
         // Transform backend fields to frontend expected fields
@@ -76,7 +76,7 @@ async function addItem() {
     const editId = form.dataset.editId;
     try {
         if (editId) {
-            const res = await fetch(`http://localhost:3000/api/inventory/${editId}`, {
+            const res = await fetch(`/api/inventory/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -86,7 +86,7 @@ async function addItem() {
             document.querySelector('#addItemModal .modal-title').textContent = 'Add New Item';
             alert('Item updated successfully');
         } else {
-            const res = await fetch('http://localhost:3000/api/inventory', {
+            const res = await fetch('/api/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -107,7 +107,7 @@ async function addItem() {
 // Load a given item for update in modal
 async function openUpdateModal(id) {
     try {
-        const res = await fetch('http://localhost:3000/api/inventory');
+        const res = await fetch('/api/inventory');
         const items = await res.json();
         const item = items.find(i => Number(i.id) === Number(id));
         if (!item) throw new Error('Item not found');
@@ -132,7 +132,7 @@ async function openUpdateModal(id) {
 async function deleteItem(id) {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
-        const res = await fetch(`http://localhost:3000/api/inventory/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to delete item');
         alert('Item deleted successfully');
         loadInventory();
