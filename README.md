@@ -29,3 +29,12 @@ folder to a USB stick now and then.
 
 ## Not done yet
 Login and roles (manager vs counter). Needs Windows 10 or later (Node 22.13+).
+
+
+## Login and roles
+- First run: the login page asks you to create the manager (name + 6 to 10 digit PIN). This can only happen once.
+- Staff log in by tapping their name and typing a PIN (counter: 4 to 6 digits, manager: 6 to 10 digits). Sessions last 12 hours. 5 wrong PINs lock that person for 2 minutes.
+- Manager: everything, plus the Staff page (add people, change PINs, turn accounts off).
+- Counter: Billing, Kitchen and Orders only. The server refuses menu, category, inventory, report and staff actions from a counter, even if someone tries the URLs by hand.
+- Each sale remembers who rang it up (shown on the Orders page).
+- PINs are stored as salted scrypt hashes. If the manager PIN is forgotten, delete `backend/data/cafepos.db` only if you accept losing all data, or ask the developer to reset it.

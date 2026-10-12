@@ -37,8 +37,8 @@ exports.create = h(req => {
   return db.transaction(() => {
     const now = new Date(), date = localDate(now);
     const token = db.prepare('SELECT COALESCE(MAX(token),0)+1 t FROM sales WHERE sale_date=?').get(date).t;
-    const id = db.prepare(`INSERT INTO sales (token, sale_date, customer_name, total, cash_paid, online_paid, change_given, payment_type, created_at)
-      VALUES (?,?,?,?,?,?,?,?,?)`).run(token, date, customer, total, cashKept, online, change, type, localDateTime(now)).lastInsertRowid;
+    const id = db.prepare(`INSERT INTO sales (token, sale_date, customer_name, total, cash_paid, online_paid, change_given, payment_type, created_at, user_id)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`).run(token, date, customer, total, cashKept, online, change, type, localDateTime(now), req.user ? req.user.id : null).lastInsertRowid;
     const ins = db.prepare('INSERT INTO sale_items (sale_id, menu_item_id, name, qty, price, kitchen) VALUES (?,?,?,?,?,?)');
     lines.forEach(l => ins.run(id, l.menu_item_id, l.name, l.qty, l.price, l.kitchen));
     return { id, token, total, change, payment_type: type, to_kitchen: lines.some(l => l.kitchen) };
@@ -73,7 +73,7 @@ const hm = t => (t ? t.slice(11, 16) : null);
 const order = (s, items) => {
   const k = items.filter(i => i.kitchen);
   return {
-    id: s.id, token: s.token, name: s.customer_name, time: hm(s.created_at), total: s.total, date: s.sale_date,
+    id: s.id, token: s.token, name: s.customer_name, cashier: s.user_id ? (db.prepare('SELECT name FROM users WHERE id=?').get(s.user_id) || {}).name || '' : '', time: hm(s.created_at), total: s.total, date: s.sale_date,
     status: k.length ? k[0].status : 'no-kitchen',
     ready_time: k.length ? hm(k[0].ready_at) : null,      // proof trail: when the cook marked it ready
     served_time: k.length ? hm(k[0].served_at) : null,     // ... and when it was handed over

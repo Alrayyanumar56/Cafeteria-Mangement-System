@@ -58,11 +58,24 @@ CREATE TABLE IF NOT EXISTS sale_items (
   kitchen INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'new'      -- new -> ready -> served (kitchen items only)
 );
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  role TEXT NOT NULL CHECK (role IN ('manager','counter')),
+  pin_hash TEXT NOT NULL,                 -- salt:hash, the PIN itself is never stored
+  active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,            -- hash of the random token kept in the browser cookie
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL             -- epoch milliseconds
+);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_token ON sales(sale_date, token);
 CREATE INDEX IF NOT EXISTS ix_sale_items_sale ON sale_items(sale_id);
 `);
 
 // Upgrade older database files in place (adds the proof-trail times if they are missing).
+if (!db.prepare('PRAGMA table_info(sales)').all().some(c => c.name === 'user_id')) db.exec('ALTER TABLE sales ADD COLUMN user_id INTEGER');   // who rang up the sale
 const have = db.prepare('PRAGMA table_info(sale_items)').all().map(c => c.name);
 for (const c of ['ready_at', 'served_at']) if (!have.includes(c)) db.exec(`ALTER TABLE sale_items ADD COLUMN ${c} TEXT`);
 

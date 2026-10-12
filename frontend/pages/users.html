@@ -1,0 +1,10 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staff - CafePOS</title><link href="../vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="../css/pos.css" rel="stylesheet"><script src="../js/guard.js"></script></head><body>
+<div id="nav"></div>
+<div class="pos-wrap" style="max-width:760px;margin:auto"><div class="panel mb-3"><h4>Staff</h4><div id="list"></div></div>
+<div class="panel"><h5>Add staff</h5>
+  <input id="nm" class="form-control mb-2" placeholder="Name" maxlength="30">
+  <select id="rl" class="form-select mb-2"><option value="counter">Counter (4 to 6 digit PIN)</option><option value="manager">Manager (6 to 10 digit PIN)</option></select>
+  <input id="pn" type="password" inputmode="numeric" class="form-control mb-2" placeholder="PIN">
+  <div id="msg" class="text-danger mb-2"></div><button id="add" class="btn btn-success w-100">Add</button></div></div>
+<script src="../js/common.js"></script><script src="../js/users.js"></script></body></html>

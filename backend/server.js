@@ -9,8 +9,7 @@ app.get('/', (req, res) => res.redirect('/pages/index.html'));
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  // Default: only this PC can open the app. CAFEPOS_LAN=1 (start-lan.bat) also lets a tablet or second PC
-  // on the same Wi-Fi/router open the Kitchen screen. There is no login yet, so use it only on a network you trust.
+  // Default: only this PC can open the app. CAFEPOS_LAN=1 (start-lan.bat) also lets another device on the same network open it (login is still required).
   const lan = process.env.CAFEPOS_LAN === '1';
   app.listen(PORT, lan ? '0.0.0.0' : '127.0.0.1', () => {
     console.log(`CafePOS running: http://localhost:${PORT}`);

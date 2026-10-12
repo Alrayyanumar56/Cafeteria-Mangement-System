@@ -8,7 +8,7 @@ async function load() {
       const [txt, col] = LABEL[o.status] || ['', 'secondary'];
       return `<div class="panel mb-2"><div class="d-flex justify-content-between align-items-center"><span class="fs-2 fw-bold">#${o.token}</span>
         <span class="badge bg-${col} fs-6">${txt}</span></div><div>${o.items.map(i => `${i.qty} × ${esc(i.name)}`).join(', ')}</div>
-        <div class="text-muted">${esc(o.name)} Paid ${o.time} · ${money(o.total)}</div>
+        <div class="text-muted">${esc(o.name)}${o.cashier ? " · cashier " + esc(o.cashier) : ""} Paid ${o.time} · ${money(o.total)}</div>
         ${o.ready_time || o.served_time ? `<div class="fw-semibold">${o.ready_time ? 'Ready ' + o.ready_time : ''}${o.served_time ? ' · Handed over ' + o.served_time : ''}</div>` : ''}</div>`;
     }).join('') : '<div class="text-muted">No order found today.</div>';
   } catch (e) { $('#list').textContent = e.message; }

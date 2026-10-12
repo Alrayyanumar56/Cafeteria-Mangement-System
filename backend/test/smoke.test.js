@@ -5,9 +5,15 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'cafepos-'
 process.env.NO_BACKUP = '1';
 const app = require('../server');
 let base, server;
-test.before(async () => { await new Promise(r => { server = app.listen(0, '127.0.0.1', r); }); base = `http://127.0.0.1:${server.address().port}`; });
+let cookie = '';   // current session; starts as the manager created in setup
+const api = async (m, u, b, ck = cookie) => {
+  const headers = { ...(b ? { 'Content-Type': 'application/json' } : {}), ...(ck ? { Cookie: ck } : {}) };
+  const r = await fetch(base + u, { method: m, headers, body: b ? JSON.stringify(b) : undefined });
+  const sc = r.headers.get('set-cookie');
+  return { s: r.status, b: await r.json().catch(() => null), cookie: sc ? sc.split(';')[0] : null };
+};
+test.before(async () => { await new Promise(r => { server = app.listen(0, '127.0.0.1', r); }); base = `http://127.0.0.1:${server.address().port}`;  cookie = (await api('POST', '/api/auth/setup', { name: 'Boss', pin: '123456' }, '')).cookie; });
 test.after(() => server.close());
-const api = async (m, u, b) => { const r = await fetch(base + u, { method: m, headers: b ? { 'Content-Type': 'application/json' } : undefined, body: b ? JSON.stringify(b) : undefined }); return { s: r.status, b: await r.json().catch(() => null) }; };
 const ids = {};
 
 test('categories seeded, editable, protected delete', async () => {
@@ -85,4 +91,50 @@ test('an older database file is upgraded in place', async () => {
   const { spawnSync } = require('node:child_process');
   const out = spawnSync(process.execPath, ['-e', `process.env.NO_BACKUP='1';process.env.DB_PATH=${JSON.stringify(old)};const db=require(${JSON.stringify(path.join(__dirname, '..', 'db.js'))});console.log(db.prepare('PRAGMA table_info(sale_items)').all().map(c=>c.name).join())`], { encoding: 'utf8' });
   assert.match(out.stdout, /ready_at,served_at/, out.stderr);
+});
+
+test('login: closed without it; setup only once; counter is limited', async () => {
+  assert.equal((await api('GET', '/api/menu', null, '')).s, 401);
+  assert.equal((await api('POST', '/api/sales', { items: [] }, '')).s, 401);
+  assert.equal((await api('GET', '/api/menu', null, 'cafepos_session=fake')).s, 401);
+  assert.equal((await api('POST', '/api/auth/setup', { name: 'Evil', pin: '999999' }, '')).s, 403);
+  const st = (await api('GET', '/api/auth/status', null, '')).b;
+  assert.equal(st.needs_setup, false); assert.deepEqual(st.users.map(u => u.name), ['Boss']);
+
+  assert.equal((await api('POST', '/api/users', { name: 'Ali', pin: '12', role: 'counter' })).s, 400);
+  assert.equal((await api('POST', '/api/users', { name: 'Eve', pin: '12345', role: 'manager' })).s, 400);
+  const ali = (await api('POST', '/api/users', { name: 'Ali', pin: '4321', role: 'counter' })).b.id;
+  assert.equal((await api('POST', '/api/users', { name: 'ali', pin: '4321' })).s, 400, 'duplicate name');
+
+  const c = (await api('POST', '/api/auth/login', { user_id: ali, pin: '4321' }, '')).cookie;
+  assert.ok(c);
+  for (const [m, u] of [['GET', '/api/users'], ['GET', '/api/inventory'], ['GET', '/api/salesBills'], ['GET', '/api/salesRecords'],
+                        ['POST', '/api/menu'], ['DELETE', '/api/menu/1'], ['POST', '/api/categories'], ['DELETE', '/api/categories/1']])
+    assert.equal((await api(m, u, m === 'GET' ? null : {}, c)).s, 403, m + ' ' + u);
+  assert.equal((await api('GET', '/api/menu', null, c)).s, 200);
+  assert.equal((await api('GET', '/api/categories', null, c)).s, 200);
+  assert.equal((await api('GET', '/api/kitchen', null, c)).s, 200);
+  assert.equal((await api('GET', '/api/orders', null, c)).s, 200);
+  const m = (await api('GET', '/api/menu')).b.find(x => x.available);
+  const sale = await api('POST', '/api/sales', { items: [{ id: m.id, qty: 1 }], cash_received: 100000 }, c);
+  assert.equal(sale.s, 200);
+  assert.equal((await api('GET', '/api/orders?token=' + sale.b.token)).b[0].cashier, 'Ali', 'sale remembers the cashier');
+});
+
+test('login: wrong PIN, lockout, deactivate kicks out, last manager protected, logout', async () => {
+  const users = (await api('GET', '/api/users')).b, boss = users.find(u => u.name === 'Boss').id;
+  const bob = (await api('POST', '/api/users', { name: 'Bob', pin: '1111', role: 'counter' })).b.id;
+  const bc = (await api('POST', '/api/auth/login', { user_id: bob, pin: '1111' }, '')).cookie;
+  assert.equal((await api('GET', '/api/menu', null, bc)).s, 200);
+  await api('PUT', '/api/users/' + bob, { active: false });
+  assert.equal((await api('GET', '/api/menu', null, bc)).s, 401, 'deactivated user is kicked out');
+  assert.equal((await api('POST', '/api/auth/login', { user_id: bob, pin: '1111' }, '')).s, 401);
+  await api('PUT', '/api/users/' + bob, { active: true, pin: '2222' });
+  for (let i = 0; i < 5; i++) assert.equal((await api('POST', '/api/auth/login', { user_id: bob, pin: '0000' }, '')).s, 401);
+  assert.equal((await api('POST', '/api/auth/login', { user_id: bob, pin: '2222' }, '')).s, 429, 'locked even with the right PIN');
+  assert.equal((await api('PUT', '/api/users/' + boss, { active: false })).s, 400, 'last manager protected');
+  assert.equal((await api('PUT', '/api/users/' + boss, { role: 'counter' })).s, 400);
+  const out = (await api('POST', '/api/auth/login', { user_id: boss, pin: '123456' }, '')).cookie;
+  await api('POST', '/api/auth/logout', {}, out);
+  assert.equal((await api('GET', '/api/auth/me', null, out)).s, 401, 'logout ends the session');
 });
