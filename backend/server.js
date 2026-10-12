@@ -1,24 +1,21 @@
-// backend/server.js
+'use strict';
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-require('dotenv').config();
-
-const apiRoutes = require('./routes/api');
-
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(express.json({ limit: '2mb' }));          // item photos are sent as small base64 strings
+app.use('/api', require('./routes/api'));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.get('/', (req, res) => res.redirect('/pages/index.html'));
 
-app.use(cors());
-app.use(bodyParser.json());
-
-// Use unified routes
-app.use('/api', apiRoutes);
-
-app.get('/', (req, res) => {
-  res.json({ ok: true });
-});
-
-app.listen(PORT, () => {
-  console.log('Server listening on port', PORT);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  // Default: only this PC can open the app. CAFEPOS_LAN=1 (start-lan.bat) also lets another device on the same network open it (login is still required).
+  const lan = process.env.CAFEPOS_LAN === '1';
+  app.listen(PORT, lan ? '0.0.0.0' : '127.0.0.1', () => {
+    console.log(`CafePOS running: http://localhost:${PORT}`);
+    if (lan) for (const list of Object.values(require('os').networkInterfaces()))
+      for (const n of list) if (n.family === 'IPv4' && !n.internal)
+        console.log(`Kitchen screen on another device: http://${n.address}:${PORT}/pages/kitchen.html`);
+  });
+}
+module.exports = app;

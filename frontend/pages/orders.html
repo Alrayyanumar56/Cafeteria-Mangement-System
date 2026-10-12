@@ -1,0 +1,12 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders - CafePOS</title><link href="../vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="../css/pos.css" rel="stylesheet"><script src="../js/guard.js"></script></head><body>
+<div id="nav"></div>
+<div class="pos-wrap" style="max-width:800px;margin:auto">
+  <h3>Find today's order</h3>
+  <div class="d-flex gap-2 mb-3">
+    <input id="tk" type="number" class="form-control form-control-lg" placeholder="Type the order number, e.g. 12">
+    <input id="day" type="date" class="form-control form-control-lg" style="max-width:200px" title="Leave empty for today">
+  </div>
+  <div id="list"></div>
+</div>
+<script src="../js/common.js"></script><script src="../js/orders.js"></script></body></html>

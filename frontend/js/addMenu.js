@@ -1,157 +1,69 @@
-// Load and display menu items on page load
-document.addEventListener('DOMContentLoaded', function() {
-    fetchMenuItems();
+let cats = [], items = [], editCat = null, editItem = null, image = '';
+
+async function load() {
+  [cats, items] = await Promise.all([api('GET', '/categories'), api('GET', '/menu')]);
+  $('#catlist').innerHTML = cats.map(c => `<div class="d-flex align-items-center gap-2 py-1 border-bottom" data-id="${c.id}">
+    <span class="flex-grow-1">${esc(c.name)} <small class="text-muted">(${c.item_count})</small>${c.kitchen ? ' 👨‍🍳' : ''}</span>
+    <button class="btn btn-sm btn-outline-primary" data-act="cedit">Edit</button>
+    <button class="btn btn-sm btn-outline-danger" data-act="cdel">✕</button></div>`).join('');
+  const sel = $('#icat'), keep = sel.value;
+  sel.innerHTML = cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(''); if (keep) sel.value = keep;
+  $('#items').innerHTML = items.map(i => `<div class="tile" data-id="${i.id}" style="${i.available ? '' : 'opacity:.5'}">
+    <img src="${esc(i.image || '../img/default.svg')}" onerror="this.src='../img/default.svg'" alt="">
+    <div class="nm">${esc(i.name)}</div><div class="pr">${money(i.price)}</div>
+    <div class="small text-muted">${esc(i.category)}${i.kitchen ? ' · 👨‍🍳' : ''}</div>
+    <div class="p-1 d-flex gap-1 justify-content-center"><button class="btn btn-sm btn-outline-primary" data-act="iedit">Edit</button>
+    <button class="btn btn-sm btn-outline-secondary" data-act="itoggle">${i.available ? 'Hide' : 'Show'}</button>
+    <button class="btn btn-sm btn-outline-danger" data-act="idel">✕</button></div></div>`).join('') || '<div class="text-muted">No items yet.</div>';
+}
+
+// ----- categories -----
+function resetCat() { editCat = null; $('#catname').value = ''; $('#catkitchen').checked = false; $('#catsave').textContent = 'Add'; }
+$('#catsave').onclick = async () => {
+  try {
+    const body = { name: $('#catname').value, kitchen: $('#catkitchen').checked };
+    await (editCat ? api('PUT', '/categories/' + editCat, body) : api('POST', '/categories', body));
+    $('#catmsg').textContent = ''; resetCat(); load();
+  } catch (e) { $('#catmsg').textContent = e.message; }
+};
+// ----- items -----
+function resetItem() { editItem = null; image = ''; ['#iname', '#iprice', '#iunit', '#ifile'].forEach(s => $(s).value = ''); $('#ikitchen').checked = false;
+  $('#iprev').style.display = 'none'; $('#itemtitle').textContent = 'Add item'; $('#icancel').hidden = true; }
+$('#icat').onchange = () => { if (!editItem) $('#ikitchen').checked = !!cats.find(c => c.id == $('#icat').value)?.kitchen; };
+$('#ifile').onchange = e => {                       // shrink photo to ~320px so the database stays small
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 320 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    image = c.toDataURL('image/jpeg', .75); $('#iprev').src = image; $('#iprev').style.display = 'block';
+  };
+  img.src = URL.createObjectURL(f);
+};
+$('#isave').onclick = async () => {
+  try {
+    const old = items.find(i => i.id === editItem);
+    const body = { name: $('#iname').value, category_id: Number($('#icat').value), price: $('#iprice').value, unit: $('#iunit').value,
+      kitchen: $('#ikitchen').checked, image: image || old?.image || '', available: old ? !!old.available : true };
+    await (editItem ? api('PUT', '/menu/' + editItem, body) : api('POST', '/menu', body));
+    $('#imsg').textContent = ''; resetItem(); load();
+  } catch (e) { $('#imsg').textContent = e.message; }
+};
+$('#icancel').onclick = resetItem;
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const row = b.closest('[data-id]'), id = Number(row.dataset.id);
+  try {
+    if (b.dataset.act === 'cedit') { const c = cats.find(x => x.id === id); editCat = id; $('#catname').value = c.name; $('#catkitchen').checked = !!c.kitchen; $('#catsave').textContent = 'Save'; }
+    if (b.dataset.act === 'cdel' && confirm('Delete this category?')) { await api('DELETE', '/categories/' + id); load(); }
+    if (b.dataset.act === 'iedit') {
+      const i = items.find(x => x.id === id); editItem = id; image = '';
+      $('#iname').value = i.name; $('#icat').value = i.category_id; $('#iprice').value = i.price; $('#iunit').value = i.unit; $('#ikitchen').checked = !!i.kitchen;
+      $('#itemtitle').textContent = 'Edit item'; $('#icancel').hidden = false; window.scrollTo(0, 0);
+    }
+    if (b.dataset.act === 'itoggle') { const i = items.find(x => x.id === id); await api('PUT', '/menu/' + id, { ...i, available: !i.available }); load(); }
+    if (b.dataset.act === 'idel' && confirm('Delete this item? Old bills are kept.')) { await api('DELETE', '/menu/' + id); load(); }
+  } catch (err) { alert(err.message); }
 });
-
-// Handle form submission
-document.getElementById('addMenuForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const itemName = document.getElementById('itemName').value.trim();
-    const itemCategory = document.getElementById('itemCategory').value;
-    const itemPrice = parseFloat(document.getElementById('itemPrice').value);
-    const itemImage = document.getElementById('itemImage').value.trim() || 'https://via.placeholder.com/150';
-
-    // Validate inputs
-    if (!itemName || !itemCategory || !itemPrice || itemPrice <= 0) {
-        alert('Please fill all required fields correctly!');
-        return;
-    }
-
-    const newItem = {
-        name: itemName,
-        category: itemCategory,
-        price: itemPrice,
-        unit: 'pcs', // you can also get unit from a form field if needed
-        image: itemImage
-    };
-
-    try {
-        const response = await fetch('http://localhost:3000/api/menu', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newItem)
-        });
-
-        if (!response.ok) throw new Error('Failed to add menu item.');
-
-        alert(`✓ "${itemName}" has been added to the menu!`);
-        this.reset();
-        fetchMenuItems(); // refresh the list
-    } catch (err) {
-        console.error(err);
-        alert('Error adding menu item. Check console for details.');
-    }
-});
-
-// Fetch and display menu items from backend
-async function fetchMenuItems() {
-    try {
-        const response = await fetch('http://localhost:3000/api/menu');
-        const menuItems = await response.json();
-
-        displayMenuItems(menuItems);
-        updateStatistics(menuItems);
-    } catch (err) {
-        console.error(err);
-        alert('Error fetching menu items.');
-    }
-}
-
-// Display menu items
-function displayMenuItems(menuItems) {
-    const container = document.getElementById('menuItemsList');
-    
-    if (menuItems.length === 0) {
-        container.innerHTML = `<div class="alert alert-info text-center">
-            <i class="bi bi-info-circle"></i> No menu items added yet.
-        </div>`;
-        return;
-    }
-
-    const groupedItems = {};
-    menuItems.forEach(item => {
-        if (!groupedItems[item.category]) groupedItems[item.category] = [];
-        groupedItems[item.category].push(item);
-    });
-
-    let html = '';
-    for (const [category, items] of Object.entries(groupedItems)) {
-        html += `<div class="mb-3">
-            <h6 class="text-primary text-capitalize fw-bold">${category.replace('-', ' & ')}</h6>
-            <div class="list-group">`;
-
-        items.forEach(item => {
-            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>${item.name}</strong><br>
-                    <small class="text-muted">PKR ${parseFloat(item.price).toFixed(2)}</small>
-                </div>
-                <button class="btn btn-sm btn-danger" onclick="deleteMenuItem(${item.id})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>`;
-        });
-
-        html += `</div></div>`;
-    }
-
-    container.innerHTML = html;
-}
-
-// Delete menu item
-async function deleteMenuItem(itemId) {
-    if (!confirm('Are you sure you want to delete this item?')) return;
-
-    try {
-        const response = await fetch(`http://localhost:3000/api/menu/${itemId}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) throw new Error('Failed to delete item.');
-
-        alert('Item deleted successfully!');
-        fetchMenuItems(); // refresh
-    } catch (err) {
-        console.error(err);
-        alert('Error deleting menu item.');
-    }
-}
-
-// Clear all menu items (confirmation required).
-async function clearAllMenuItems() {
-    if (!confirm('Are you sure you want to delete ALL menu items? This action cannot be undone.')) return;
-    try {
-        const res = await fetch('http://localhost:3000/api/menu');
-        const items = await res.json();
-        if (!items.length) { alert('No menu items to delete'); return; }
-
-        // Delete all items sequentially to avoid server overload
-        for (const it of items) {
-            await fetch(`http://localhost:3000/api/menu/${it.id}`, { method: 'DELETE' });
-        }
-        alert('All menu items have been deleted.');
-        fetchMenuItems();
-    } catch (err) {
-        console.error(err);
-        alert('Error deleting menu items. See console.');
-    }
-}
-
-// Update statistics
-function updateStatistics(menuItems) {
-    document.getElementById('totalItems').textContent = menuItems.length;
-    const breakfastCount = menuItems.filter(i => i.category === 'breakfast').length;
-    const mealsCount = menuItems.filter(i => i.category === 'meals').length;
-    const bakeryCount = menuItems.filter(i => i.category === 'bakery').length;
-    const snacksCount = menuItems.filter(i => i.category === 'snacks').length;
-    // Merge cold-drinks and hot-drinks into drinks
-    const drinksCount = menuItems.filter(i => i.category === 'drinks' || i.category === 'cold-drinks' || i.category === 'hot-drinks').length;
-    const shakesCount = menuItems.filter(i => i.category === 'shakes').length;
-    document.getElementById('breakfastCount').textContent = breakfastCount;
-    document.getElementById('mealsCount').textContent = mealsCount;
-    document.getElementById('bakeryCount').textContent = bakeryCount;
-    document.getElementById('snacksCount').textContent = snacksCount;
-    document.getElementById('drinksCount').textContent = drinksCount;
-    document.getElementById('shakesCount').textContent = shakesCount;
-}
+load();

@@ -9,9 +9,17 @@ let ALL_ITEMS = [];
 let currentFilteredBills = [];
 
 // ---------- Fetch helpers ----------
+// Server sends the last 90 days by default; picking dates asks it for exactly that window.
+function windowQuery() {
+  const s = document.getElementById('startDate')?.value || '', e = document.getElementById('endDate')?.value || '';
+  const p = [];
+  if (s) p.push('from=' + encodeURIComponent(s));
+  if (e) p.push('to=' + encodeURIComponent(e));
+  return p.length ? '?' + p.join('&') : '';
+}
 async function fetchSalesRecords() {
   try {
-    const res = await fetch('http://localhost:3000/api/salesRecords');
+    const res = await fetch('/api/salesRecords' + windowQuery());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.map(r => ({
@@ -29,7 +37,7 @@ async function fetchSalesRecords() {
 
 async function fetchSalesBills() {
   try {
-    const res = await fetch('http://localhost:3000/api/salesBills');
+    const res = await fetch('/api/salesBills' + windowQuery());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.map(b => ({
@@ -241,7 +249,8 @@ function initChartsFromItems(itemsFlat) {
 }
 
 // ---------- Filters and totals ----------
-function applyFilters() {
+async function applyFilters() {
+  ALL_BILLS = await fetchSalesBills();
   const startDateVal = document.getElementById('startDate')?.value || '';
   const endDateVal = document.getElementById('endDate')?.value || '';
   const paymentFilter = document.getElementById('paymentFilter')?.value || 'all';
