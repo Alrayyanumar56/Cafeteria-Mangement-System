@@ -16,3 +16,16 @@ Runs fully on one PC. No internet, no MySQL. Data lives in `backend/data/cafepos
 ## Dev
 `cd backend && npm install && npm test`. All database code is in `backend/db.js` plus SQL in the controllers.
 Not built yet: login and roles (manager vs counter).
+
+## Second screen for the kitchen
+- Easiest: plug a second monitor/TV into the same PC and keep the Kitchen page open on it. No network needed.
+- Or run `start-lan.bat` instead of `start.bat`. The black window prints an address like
+  `http://192.168.1.20:3000/pages/kitchen.html` to open on a tablet or second PC on the same Wi-Fi.
+  There is no login yet, so anyone on that network could open the app. Use it only on a network you trust.
+
+## Backups
+`backend/data/backups/` gets one copy per day (last 14 kept). They sit on the same disk, so copy the `backend/data`
+folder to a USB stick now and then.
+
+## Not done yet
+Login and roles (manager vs counter). Needs Windows 10 or later (Node 22.13+).

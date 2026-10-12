@@ -57,3 +57,32 @@ test('deleting a menu item keeps history; unavailable item cannot be sold; repor
   assert.ok(r.some(x => x.name === "Chef's Biryani") && 'payment' in r[0] && 'date' in r[0]);
   assert.equal((await api('GET', '/api/nope')).s, 404);
 });
+
+test('custom item to kitchen; proof trail times; wait time; lookup by day', async () => {
+  const r = await api('POST', '/api/sales', { items: [{ name: 'Special Roll', price: 180, qty: 2, kitchen: 1 }], cash_received: 400 });
+  assert.equal(r.s, 200); assert.equal(r.b.to_kitchen, true); assert.equal(r.b.change, 40);
+  const id = r.b.id;
+  let k = (await api('GET', '/api/kitchen')).b.find(o => o.id === id);
+  assert.equal(k.status, 'new'); assert.equal(typeof k.age_min, 'number'); assert.equal(k.ready_time, null);
+  await api('PUT', '/api/kitchen/' + id, { status: 'ready' });
+  await api('PUT', '/api/kitchen/' + id, { status: 'served' });
+  const o = (await api('GET', '/api/orders?token=' + r.b.token)).b[0];
+  assert.equal(o.status, 'served');
+  assert.match(o.ready_time, /^\d\d:\d\d$/); assert.match(o.served_time, /^\d\d:\d\d$/);
+  await api('PUT', '/api/kitchen/' + id, { status: 'new' });                       // undo clears the times
+  const u = (await api('GET', '/api/orders?token=' + r.b.token)).b[0];
+  assert.equal(u.ready_time, null); assert.equal(u.served_time, null);
+  assert.equal((await api('GET', '/api/orders?date=2001-01-01')).b.length, 0);
+  assert.equal((await api('POST', '/api/sales', { items: [{ name: '', price: 5, qty: 1 }], cash_received: 5 })).s, 400);
+});
+
+test('an older database file is upgraded in place', async () => {
+  const { DatabaseSync } = require('node:sqlite');
+  const old = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'cafepos-old-')), 'old.db');
+  const d = new DatabaseSync(old);
+  d.exec(`CREATE TABLE sale_items (id INTEGER PRIMARY KEY, sale_id INTEGER, menu_item_id INTEGER, name TEXT, qty INTEGER, price REAL, kitchen INTEGER, status TEXT DEFAULT 'new');`);
+  d.close();
+  const { spawnSync } = require('node:child_process');
+  const out = spawnSync(process.execPath, ['-e', `process.env.NO_BACKUP='1';process.env.DB_PATH=${JSON.stringify(old)};const db=require(${JSON.stringify(path.join(__dirname, '..', 'db.js'))});console.log(db.prepare('PRAGMA table_info(sale_items)').all().map(c=>c.name).join())`], { encoding: 'utf8' });
+  assert.match(out.stdout, /ready_at,served_at/, out.stderr);
+});

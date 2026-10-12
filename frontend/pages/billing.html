@@ -6,6 +6,13 @@
   <div class="panel"><div class="tiles" id="tiles"></div><div id="noitems" class="text-muted p-3" hidden>No items here yet. Add some on the Menu page.</div></div>
   <div class="panel d-flex flex-column">
     <div id="cart" class="flex-grow-1" style="min-height:120px"></div>
+    <button class="btn btn-outline-primary btn-sm mb-1" id="otherBtn">+ Item not on the menu</button>
+    <div id="otherBox" class="border rounded p-2 mb-2" hidden>
+      <input id="oName" class="form-control mb-1" maxlength="60" placeholder="Item name">
+      <div class="d-flex gap-2 mb-1"><input id="oPrice" type="number" min="1" class="form-control" placeholder="Price"><input id="oQty" type="number" min="1" max="99" value="1" class="form-control" style="max-width:90px"></div>
+      <label class="d-block mb-1"><input type="checkbox" id="oKitchen"> Send to the kitchen screen</label>
+      <button class="btn btn-primary btn-sm" id="oAdd">Add to order</button>
+    </div>
     <div class="total" id="total">Rs 0</div>
     <input id="cname" class="form-control my-2" placeholder="Customer name (optional)" maxlength="40">
     <div class="paymode mb-2"><button data-m="cash" class="on">💵 Cash</button><button data-m="online">📱 Online</button><button data-m="split">➗ Split</button></div>

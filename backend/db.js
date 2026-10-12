@@ -62,23 +62,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_token ON sales(sale_date, token);
 CREATE INDEX IF NOT EXISTS ix_sale_items_sale ON sale_items(sale_id);
 `);
 
+// Upgrade older database files in place (adds the proof-trail times if they are missing).
+const have = db.prepare('PRAGMA table_info(sale_items)').all().map(c => c.name);
+for (const c of ['ready_at', 'served_at']) if (!have.includes(c)) db.exec(`ALTER TABLE sale_items ADD COLUMN ${c} TEXT`);
+
 if (db.prepare('SELECT COUNT(*) n FROM categories').get().n === 0) {
   const ins = db.prepare('INSERT INTO categories (name, kitchen) VALUES (?, ?)');
   [['Meals', 0], ['Shawarma & Rolls', 1], ['Shakes', 1], ['Cold Drinks', 0], ['Snacks', 0], ['Tea & Coffee', 0]]
     .forEach(c => ins.run(...c));
 }
 
-// Daily backup: copy of the database, keeps the last 14 days.
-if (!process.env.NO_BACKUP) {
+// Daily backup: a copy of the database, keeps the last 14 days.
+// Checked at start-up and then every hour, so a PC that stays on for days still gets one each day.
+// The copies sit on the same disk: now and then copy backend/data to a USB stick as well.
+function backupToday() {
   const dir = path.join(path.dirname(DB_PATH), 'backups');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, 'cafepos-' + new Date().toISOString().slice(0, 10) + '.db');
-  if (!fs.existsSync(file)) {
-    try {
-      raw.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
-      fs.readdirSync(dir).filter(f => f.endsWith('.db')).sort().slice(0, -14)
-        .forEach(f => fs.unlinkSync(path.join(dir, f)));
-    } catch (e) { console.error('Backup failed:', e.message); }
-  }
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const file = path.join(dir, `cafepos-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.db`);
+  if (fs.existsSync(file)) return;
+  try {
+    raw.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+    fs.readdirSync(dir).filter(f => f.endsWith('.db')).sort().slice(0, -14).forEach(f => fs.unlinkSync(path.join(dir, f)));
+  } catch (e) { console.error('Backup failed:', e.message); }
 }
+if (!process.env.NO_BACKUP) { backupToday(); setInterval(backupToday, 60 * 60 * 1000).unref(); }
 module.exports = db;

@@ -69,12 +69,19 @@ exports.getSalesRecords = h(req => {
 });
 
 // ---------- Kitchen screen + order lookup ----------
-const order = (s, items) => ({
-  id: s.id, token: s.token, name: s.customer_name, time: s.created_at.slice(11, 16), total: s.total,
-  status: items.some(i => i.kitchen) ? items.filter(i => i.kitchen)[0].status : 'no-kitchen',
-  items: items.map(i => ({ name: i.name, qty: i.qty, kitchen: !!i.kitchen }))
-});
-const itemsOf = db.prepare('SELECT name, qty, kitchen, status FROM sale_items WHERE sale_id=?');
+const hm = t => (t ? t.slice(11, 16) : null);
+const order = (s, items) => {
+  const k = items.filter(i => i.kitchen);
+  return {
+    id: s.id, token: s.token, name: s.customer_name, time: hm(s.created_at), total: s.total, date: s.sale_date,
+    status: k.length ? k[0].status : 'no-kitchen',
+    ready_time: k.length ? hm(k[0].ready_at) : null,      // proof trail: when the cook marked it ready
+    served_time: k.length ? hm(k[0].served_at) : null,     // ... and when it was handed over
+    age_min: Math.max(0, Math.floor((Date.now() - Date.parse(s.created_at.replace(' ', 'T'))) / 60000)),
+    items: items.map(i => ({ name: i.name, qty: i.qty, kitchen: !!i.kitchen }))
+  };
+};
+const itemsOf = db.prepare('SELECT name, qty, kitchen, status, ready_at, served_at FROM sale_items WHERE sale_id=?');
 
 // Today's orders that have kitchen items and are not served yet. Only kitchen items are listed.
 exports.kitchen = h(() => {
@@ -85,14 +92,19 @@ exports.kitchen = h(() => {
 exports.setKitchenStatus = h(req => {
   const st = req.body.status;
   if (!['new', 'ready', 'served'].includes(st)) throw bad('Bad status');
-  const r = db.prepare('UPDATE sale_items SET status=? WHERE sale_id=? AND kitchen=1').run(st, req.params.id);
+  const now = localDateTime();
+  const r = db.prepare(`UPDATE sale_items SET status=?,
+      ready_at  = CASE WHEN ? = 'new' THEN NULL ELSE COALESCE(ready_at, ?) END,
+      served_at = CASE WHEN ? = 'served' THEN ? ELSE NULL END
+    WHERE sale_id=? AND kitchen=1`).run(st, st, now, st, now, req.params.id);
   if (!r.changes) throw bad('No kitchen items on that order');
   return { message: 'Updated' };
 });
 exports.orders = h(req => {
   const t = parseInt(req.query.token, 10);
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : localDate();   // default: today
   const rows = Number.isInteger(t)
-    ? db.prepare('SELECT * FROM sales WHERE sale_date=? AND token=?').all(localDate(), t)
-    : db.prepare('SELECT * FROM sales WHERE sale_date=? ORDER BY id DESC LIMIT 100').all(localDate());
+    ? db.prepare('SELECT * FROM sales WHERE sale_date=? AND token=?').all(day, t)
+    : db.prepare('SELECT * FROM sales WHERE sale_date=? ORDER BY id DESC LIMIT 100').all(day);
   return rows.map(s => order(s, itemsOf.all(s.id)));
 });

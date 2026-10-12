@@ -23,7 +23,7 @@ const total = () => S.cart.reduce((s, l) => s + l.price * l.qty, 0);
 
 function renderCart() {
   $('#cart').innerHTML = S.cart.length ? S.cart.map(l => `<div class="cart-row" data-id="${l.id}">
-    <span class="nm">${esc(l.name)}</span><button class="qbtn" data-d="-1">−</button><b>${l.qty}</b><button class="qbtn" data-d="1">+</button>
+    <span class="nm">${esc(l.name)}${l.custom ? ' ✎' : ''}</span><button class="qbtn" data-d="-1">−</button><b>${l.qty}</b><button class="qbtn" data-d="1">+</button>
     <span style="width:80px;text-align:right">${money(l.price * l.qty)}</span></div>`).join('') : '<div class="text-muted p-3">Tap a picture to add it.</div>';
   $('#total').textContent = money(total());
   renderPay();
@@ -75,12 +75,20 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => { if (e.target.matches('#cash,#onl')) check(); });
 $('#clear').onclick = () => { S.cart = []; renderCart(); };
+$('#otherBtn').onclick = () => { $('#otherBox').hidden = !$('#otherBox').hidden; };
+$('#oAdd').onclick = () => {
+  const name = $('#oName').value.trim(), price = Number($('#oPrice').value), qty = Math.floor(Number($('#oQty').value)) || 1;
+  if (!name || !(price > 0) || qty < 1 || qty > 99) { $('#msg').textContent = 'Type a name and a price for the extra item.'; return; }
+  S.cart.push({ id: 'x' + Date.now(), custom: true, name, price, qty, kitchen: $('#oKitchen').checked ? 1 : 0 });
+  ['#oName', '#oPrice'].forEach(s => { $(s).value = ''; }); $('#oQty').value = 1; $('#oKitchen').checked = false;
+  $('#otherBox').hidden = true; renderCart();
+};
 
 $('#pay').onclick = async () => {
   $('#pay').disabled = true;
   try {
     const a = amounts();
-    const r = await api('POST', '/sales', { items: S.cart.map(l => ({ id: l.id, qty: l.qty })), cash_received: a.cash, online_amount: a.online, customer_name: $('#cname').value });
+    const r = await api('POST', '/sales', { items: S.cart.map(l => l.custom ? { name: l.name, price: l.price, qty: l.qty, kitchen: l.kitchen } : { id: l.id, qty: l.qty }), cash_received: a.cash, online_amount: a.online, customer_name: $('#cname').value });
     $('#tok').textContent = '#' + r.token;
     $('#doneinfo').innerHTML = (r.change > 0 ? `Give back <b>${money(r.change)}</b><br>` : '') + (r.to_kitchen ? '👨‍🍳 Sent to kitchen' : 'Take it from the counter');
     $('#done').classList.add('show');

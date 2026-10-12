@@ -7,7 +7,7 @@ $('#snd').onclick = () => { sound = !sound; $('#snd').textContent = sound ? '�
 function card(o) {
   const next = o.status === 'new' ? ['ready', 'Ready ✔'] : ['served', 'Handed over'];
   return `<div class="k-card ${o.status}"><div class="d-flex justify-content-between align-items-center">
-    <div class="k-token">#${o.token}</div><div class="text-muted">${esc(o.name)} · ${o.time}</div></div>
+    <div class="k-token">#${o.token}</div><div class="text-end"><div class="text-muted">${esc(o.name)} · ${o.time}</div>${o.status === 'new' ? `<div class="k-wait ${o.age_min >= 10 ? 'late' : o.age_min >= 5 ? 'warn' : ''}">${o.age_min} min</div>` : ''}</div></div>
     <div class="k-items my-2">${o.items.map(i => `${i.qty} × ${esc(i.name)}`).join('<br>')}</div>
     <button data-id="${o.id}" data-s="${next[0]}">${next[1]}</button></div>`;
 }
